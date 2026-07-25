@@ -1,0 +1,106 @@
+import ApiError from "../utils/ApiError.js";
+import * as dmRepository from "../repositories/dm.repository.js";
+import * as friendRepository from "../repositories/friend.repository.js";
+import * as userRepository from "../repositories/user.repository.js";
+import { emitToUsers } from "../sockets/emitters.js";
+
+/** participantIds come back populated — normalize to plain id strings. */
+const participantIds = (dm) =>
+  dm.participantIds.map((p) => (p._id ?? p).toString());
+
+export const isParticipant = (dm, userId) =>
+  participantIds(dm).includes(userId.toString());
+
+const otherParticipantId = (dm, userId) =>
+  participantIds(dm).find((id) => id !== userId.toString());
+
+/** Opens (or returns the existing) 1:1 DM with a friend. */
+export const openDm = async (user, targetUserId) => {
+  if (targetUserId.toString() === user._id.toString()) {
+    throw ApiError.badRequest("You cannot DM yourself");
+  }
+  const target = await userRepository.findById(targetUserId);
+  if (!target || !target.isActive) throw ApiError.notFound("User not found");
+  if (await friendRepository.findBlockBetween(user._id, targetUserId)) {
+    throw ApiError.forbidden("You cannot DM this user");
+  }
+  const relationship = await friendRepository.findBetween(user._id, targetUserId);
+  if (!relationship || relationship.status !== "accepted") {
+    throw ApiError.forbidden("You can only DM your friends");
+  }
+
+  const existing = await dmRepository.findByPair(user._id, targetUserId);
+  if (existing) return { dm: existing, created: false };
+  const dm = await dmRepository.createChannel(user._id, targetUserId);
+  return { dm, created: true };
+};
+
+export const listDms = (userId) => dmRepository.listByUser(userId);
+
+/** Loads a DM and enforces that the user is one of its two participants. */
+export const getDmForUser = async (dmId, userId) => {
+  const dm = await dmRepository.findChannelById(dmId);
+  if (!dm) throw ApiError.notFound("DM channel not found");
+  if (!isParticipant(dm, userId)) {
+    throw ApiError.forbidden("You are not part of this conversation");
+  }
+  return dm;
+};
+
+export const sendMessage = async (dm, author, { content }) => {
+  const otherId = otherParticipantId(dm, author._id);
+  // Blocks cut off existing conversations too, not just new ones
+  if (await friendRepository.findBlockBetween(author._id, otherId)) {
+    throw ApiError.forbidden("You cannot send messages in this conversation");
+  }
+  const message = await dmRepository.createMessage({
+    dmId: dm._id,
+    authorId: author._id,
+    content,
+  });
+  await dmRepository.touchChannel(dm._id);
+  emitToUsers(participantIds(dm), "dm:new", { message });
+  return message;
+};
+
+const resolveCursor = async (dm, before) => {
+  if (!before) return undefined;
+  const anchor = await dmRepository.findMessageById(before);
+  if (!anchor || anchor.dmId.toString() !== dm._id.toString()) {
+    throw ApiError.badRequest("Invalid cursor");
+  }
+  return anchor.createdAt;
+};
+
+export const listMessages = async (dm, { before, limit }) => {
+  const cursor = await resolveCursor(dm, before);
+  const messages = await dmRepository.findMessages({ dmId: dm._id, before: cursor, limit });
+  const nextCursor = messages.length === limit ? messages[messages.length - 1]._id : null;
+  return { messages, nextCursor };
+};
+
+const isAuthor = (message, userId) =>
+  (message.authorId._id ?? message.authorId).toString() === userId.toString();
+
+export const updateMessage = async (dm, user, message, { content }) => {
+  if (!isAuthor(message, user._id)) {
+    throw ApiError.forbidden("You can only edit your own messages");
+  }
+  const updated = await dmRepository.updateMessageById(message._id, {
+    content,
+    editedAt: new Date(),
+  });
+  emitToUsers(participantIds(dm), "dm:updated", { message: updated });
+  return updated;
+};
+
+export const deleteMessage = async (dm, user, message) => {
+  if (!isAuthor(message, user._id)) {
+    throw ApiError.forbidden("You can only delete your own messages");
+  }
+  await dmRepository.deleteMessageById(message._id);
+  emitToUsers(participantIds(dm), "dm:deleted", {
+    messageId: message._id,
+    dmId: dm._id,
+  });
+};

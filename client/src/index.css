@@ -1,59 +1,100 @@
 @import "tailwindcss";
 
-/* Base styles */
-* {
-  box-sizing: border-box;
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", monospace;
+
+  /* Cream — canvas + surfaces */
+  --color-cream-50: #fbf9ee;
+  --color-cream-100: #f6f3e0;
+  --color-cream-200: #efebd0;
+  --color-cream-300: #e5e0ba;
+  --color-cream-400: #d6cf9e;
+
+  /* Lavender — primary */
+  --color-lav-50: #f4f1fa;
+  --color-lav-100: #e8e3f4;
+  --color-lav-200: #d4cbe8;
+  --color-lav-300: #bcb0da;
+  --color-lav-400: #a795cc;
+  --color-lav-500: #8f7ab8;
+  --color-lav-600: #77629f;
+  --color-lav-700: #614f83;
+  --color-lav-800: #4b3d66;
+  --color-lav-900: #352b49;
+
+  /* Ink — neutral text on cream */
+  --color-ink-900: #2c2733;
+  --color-ink-700: #4a4453;
+  --color-ink-500: #6f6879;
+  --color-ink-300: #a19aab;
+
+  /* Presence */
+  --color-status-online: #4caf7d;
+  --color-status-idle: #e0b34c;
+  --color-status-dnd: #d9646c;
+  --color-status-offline: #a8a29e;
+
+  --animate-fade-in: fade-in 0.18s ease-out;
+  --animate-slide-up: slide-up 0.22s ease-out;
+  --animate-pop: pop 0.16s ease-out;
 }
 
-html {
-  scroll-behavior: smooth;
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pop {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+html, body, #root {
+  height: 100%;
 }
 
 body {
-  margin: 0;
-  padding: 0;
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background-color: #0f0f14;
-  color: #e5e7eb;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  @apply bg-cream-100 text-ink-900 font-sans antialiased;
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* Soft lavender scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-lav-300) transparent;
+}
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: var(--color-lav-300); border-radius: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+
+/* Reusable primitives */
+@utility card {
+  @apply bg-cream-50 rounded-2xl border border-cream-300 shadow-sm;
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
+@utility input-base {
+  @apply w-full rounded-xl border border-cream-300 bg-white/70 px-3.5 py-2.5 text-sm text-ink-900
+    placeholder:text-ink-300 outline-none transition
+    focus:border-lav-400 focus:ring-2 focus:ring-lav-200;
 }
 
-::-webkit-scrollbar-thumb {
-  background: #2a2a3a;
-  border-radius: 3px;
+@utility btn-primary {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl bg-lav-500 px-4 py-2.5 text-sm
+    font-semibold text-white transition hover:bg-lav-600 active:scale-[0.98]
+    disabled:opacity-50 disabled:pointer-events-none;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #3a3a4a;
+@utility btn-ghost {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold
+    text-lav-700 transition hover:bg-lav-100 active:scale-[0.98]
+    disabled:opacity-50 disabled:pointer-events-none;
 }
 
-/* Selection color */
-::selection {
-  background: rgba(99, 102, 241, 0.3);
-  color: #fff;
-}
-
-/* Focus visible outline */
-:focus-visible {
-  outline: 2px solid #6366f1;
-  outline-offset: 2px;
-}
-
-/* Remove default input autofill styles */
-input:-webkit-autofill,
-input:-webkit-autofill:hover,
-input:-webkit-autofill:focus {
-  -webkit-box-shadow: 0 0 0 30px #0f0f14 inset !important;
-  -webkit-text-fill-color: #e5e7eb !important;
+@utility btn-danger {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl bg-status-dnd px-4 py-2.5 text-sm
+    font-semibold text-white transition hover:opacity-90 active:scale-[0.98]
+    disabled:opacity-50 disabled:pointer-events-none;
 }

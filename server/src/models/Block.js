@@ -1,0 +1,24 @@
+import mongoose from "mongoose";
+
+/** Directional block: blocker no longer receives requests/DMs from blocked. */
+const blockSchema = new mongoose.Schema(
+  {
+    blockerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    blockedId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+  },
+  { timestamps: true }
+);
+
+blockSchema.index({ blockerId: 1, blockedId: 1 }, { unique: true });
+
+const Block = mongoose.model("Block", blockSchema);
+
+export default Block;

@@ -1,0 +1,191 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { MessageSquarePlus, Pencil, Pin, PinOff, Trash2 } from "lucide-react";
+import { Avatar } from "../ui/Avatar";
+import { CodeBlock } from "./CodeBlock";
+import { cn, displayNameOf, formatTime, parseContent, splitLinks } from "../../lib/utils";
+
+/** Same-origin links (e.g. invite links) navigate in-app; others open a new tab. */
+const ContentLink = ({ url }) => {
+  const navigate = useNavigate();
+  const isInternal = url.startsWith(window.location.origin);
+
+  return (
+    <a
+      href={url}
+      target={isInternal ? undefined : "_blank"}
+      rel={isInternal ? undefined : "noopener noreferrer"}
+      onClick={(e) => {
+        if (!isInternal) return;
+        e.preventDefault();
+        navigate(url.slice(window.location.origin.length) || "/");
+      }}
+      className="break-all font-medium text-lav-600 underline decoration-lav-300 underline-offset-2 transition hover:text-lav-800 hover:decoration-lav-500"
+    >
+      {url}
+    </a>
+  );
+};
+
+const MessageContent = ({ content }) => (
+  <div className="min-w-0 text-[14px] leading-relaxed text-ink-900">
+    {parseContent(content).map((seg, i) =>
+      seg.type === "code" ? (
+        <CodeBlock key={i} lang={seg.lang} code={seg.value} />
+      ) : (
+        <span key={i} className="whitespace-pre-wrap break-words">
+          {splitLinks(seg.value).map((part, j) =>
+            part.type === "link" ? (
+              <ContentLink key={j} url={part.value} />
+            ) : (
+              part.value
+            )
+          )}
+        </span>
+      )
+    )}
+  </div>
+);
+
+const ActionButton = ({ icon: Icon, label, danger, onClick }) => (
+  <button
+    onClick={onClick}
+    title={label}
+    className={cn(
+      "rounded-lg p-1.5 transition",
+      danger
+        ? "text-ink-300 hover:bg-status-dnd/10 hover:text-status-dnd"
+        : "text-ink-300 hover:bg-lav-100 hover:text-lav-700"
+    )}
+  >
+    <Icon size={14} />
+  </button>
+);
+
+/**
+ * One chat message row with hover actions (edit / pin / delete / thread)
+ * and inline editing. Grouped rows hide the avatar + author line.
+ */
+export const MessageItem = ({
+  message,
+  grouped,
+  isMine,
+  canManage, // MANAGE_MESSAGES holders can delete/pin others' messages
+  canPin,
+  onEdit,
+  onDelete,
+  onTogglePin,
+  onStartThread,
+}) => {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+  const author = typeof message.authorId === "object" ? message.authorId : null;
+
+  const startEdit = () => {
+    setDraft(message.content);
+    setEditing(true);
+  };
+
+  const submitEdit = async () => {
+    const content = draft.trim();
+    if (!content || content === message.content) {
+      setEditing(false);
+      return;
+    }
+    setBusy(true);
+    try {
+      await onEdit(message._id, content);
+      setEditing(false);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onEditKey = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      submitEdit();
+    }
+    if (e.key === "Escape") setEditing(false);
+  };
+
+  return (
+    <div
+      className={cn(
+        "group relative flex gap-3 px-4 py-0.5 transition hover:bg-cream-200/50",
+        !grouped && "mt-3",
+        message.pinned && "border-l-2 border-lav-400 bg-lav-50/60"
+      )}
+    >
+      {grouped ? (
+        <span className="w-10 shrink-0 pt-1 text-right text-[10px] leading-5 text-ink-300 opacity-0 transition group-hover:opacity-100">
+          {new Date(message.createdAt).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </span>
+      ) : (
+        <Avatar user={author} size="md" className="mt-0.5" />
+      )}
+
+      <div className="min-w-0 flex-1">
+        {!grouped && (
+          <p className="flex flex-wrap items-baseline gap-x-2">
+            <span className="text-sm font-bold text-ink-900">{displayNameOf(author)}</span>
+            <span className="text-[11px] text-ink-300">{formatTime(message.createdAt)}</span>
+            {message.pinned && (
+              <span className="flex items-center gap-0.5 text-[10px] font-semibold text-lav-600">
+                <Pin size={10} /> pinned
+              </span>
+            )}
+          </p>
+        )}
+
+        {editing ? (
+          <div className="mt-1">
+            <textarea
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={onEditKey}
+              rows={Math.min(8, draft.split("\n").length + 1)}
+              className="input-base w-full resize-none font-normal"
+              disabled={busy}
+            />
+            <p className="mt-1 text-[11px] text-ink-300">
+              Enter to save · Esc to cancel
+            </p>
+          </div>
+        ) : (
+          <div className="flex items-baseline gap-1.5">
+            <MessageContent content={message.content} />
+            {message.editedAt && (
+              <span className="shrink-0 text-[10px] text-ink-300">(edited)</span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* hover actions */}
+      {!editing && (
+        <div className="absolute -top-3 right-4 hidden items-center gap-0.5 rounded-xl border border-cream-300 bg-white p-0.5 shadow-sm group-hover:flex">
+          {onStartThread && (
+            <ActionButton icon={MessageSquarePlus} label="Reply in thread" onClick={() => onStartThread(message)} />
+          )}
+          {canPin && (
+            <ActionButton
+              icon={message.pinned ? PinOff : Pin}
+              label={message.pinned ? "Unpin" : "Pin"}
+              onClick={() => onTogglePin(message)}
+            />
+          )}
+          {isMine && <ActionButton icon={Pencil} label="Edit" onClick={startEdit} />}
+          {(isMine || canManage) && (
+            <ActionButton icon={Trash2} label="Delete" danger onClick={() => onDelete(message)} />
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
