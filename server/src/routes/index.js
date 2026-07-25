@@ -8,6 +8,7 @@ import threadRoutes from "./thread.routes.js";
 import messageRoutes from "./message.routes.js";
 import friendRoutes from "./friend.routes.js";
 import dmRoutes from "./dm.routes.js";
+import aiRoutes from "./ai.routes.js";
 
 const router = Router();
 
@@ -24,5 +25,6 @@ router.use("/threads", threadRoutes);
 router.use("/messages", messageRoutes);
 router.use("/friends", friendRoutes);
 router.use("/dms", dmRoutes);
+router.use("/ai", aiRoutes);
 
 export default router;

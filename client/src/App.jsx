@@ -12,6 +12,8 @@ import DiscoverPage from "./pages/DiscoverPage";
 import InvitePage from "./pages/InvitePage";
 import ServerIndex from "./pages/ServerIndex";
 import ChannelPage from "./pages/ChannelPage";
+import IdePage from "./pages/IdePage";
+import StudyPage from "./pages/StudyPage";
 
 const App = () => (
   <Routes>
@@ -57,6 +59,8 @@ const App = () => (
       <Route path="servers/:serverId" element={<ServerLayout />}>
         <Route index element={<ServerIndex />} />
         <Route path="channels/:channelId" element={<ChannelPage />} />
+        <Route path="ide" element={<IdePage />} />
+        <Route path="study" element={<StudyPage />} />
       </Route>
     </Route>
 

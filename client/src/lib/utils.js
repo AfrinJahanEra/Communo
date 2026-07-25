@@ -73,6 +73,31 @@ export const parseContent = (content = "") => {
 
 export const idOf = (value) => (value && typeof value === "object" ? value._id : value)?.toString();
 
+/** "1.4 MB" style human-readable file sizes. */
+export const formatBytes = (bytes = 0) => {
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ["KB", "MB", "GB"];
+  let value = bytes / 1024;
+  let i = 0;
+  while (value >= 1024 && i < units.length - 1) {
+    value /= 1024;
+    i += 1;
+  }
+  return `${value >= 10 ? Math.round(value) : value.toFixed(1)} ${units[i]}`;
+};
+
+/** Triggers a browser download for a Blob with the given filename. */
+export const saveBlob = (blob, filename) => {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+};
+
 /** The friend a DM is with (the participant that isn't me). */
 export const dmPartner = (dm, myId) =>
   (dm?.participantIds || []).find((p) => idOf(p) !== String(myId)) || null;

@@ -17,6 +17,13 @@ const envSchema = z.object({
   CLOUDINARY_CLOUD_NAME: z.string().min(1),
   CLOUDINARY_API_KEY: z.string().min(1),
   CLOUDINARY_API_SECRET: z.string().min(1),
+
+  // Optional integrations: endpoints guard with 503 when unconfigured,
+  // so the API still boots without these accounts (dev-friendly).
+  JDOODLE_CLIENT_ID: z.string().optional(),
+  JDOODLE_CLIENT_SECRET: z.string().optional(),
+  GROQ_API_KEY: z.string().optional(),
+  GROQ_MODEL: z.string().default("llama-3.3-70b-versatile"),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -8,8 +8,10 @@ import {
 } from "react-router-dom";
 import {
   ChevronDown,
+  Code2,
   Hash,
   Megaphone,
+  Sparkles,
   Volume2,
   UserPlus,
   Settings,
@@ -37,6 +39,30 @@ import * as serverService from "../services/serverService";
 import { listChannels } from "../services/channelService";
 
 const CHANNEL_ICONS = { text: Hash, announcement: Megaphone, voice: Volume2 };
+
+/** Fixed per-server sections: collaborative IDE + AI study assistant. */
+const WORKSPACE_LINKS = [
+  { path: "ide", label: "Collaborative IDE", icon: Code2 },
+  { path: "study", label: "AI Study Assistant", icon: Sparkles },
+];
+
+const WorkspaceLink = ({ serverId, link, onNavigate }) => (
+  <NavLink
+    to={`/app/servers/${serverId}/${link.path}`}
+    onClick={onNavigate}
+    className={({ isActive }) =>
+      cn(
+        "group flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm transition",
+        isActive
+          ? "bg-lav-100 font-semibold text-lav-800"
+          : "text-ink-500 hover:bg-cream-300/70 hover:text-ink-900"
+      )
+    }
+  >
+    <link.icon size={15} className="shrink-0 opacity-70" />
+    <span className="truncate">{link.label}</span>
+  </NavLink>
+);
 
 const ChannelLink = ({ serverId, channel, onNavigate }) => {
   const Icon = CHANNEL_ICONS[channel.type] || Hash;
@@ -224,6 +250,16 @@ const ServerLayout = () => {
 
         {/* Channels */}
         <div className="flex-1 space-y-5 overflow-y-auto p-3">
+          <div>
+            <p className="px-2 pb-1 text-[11px] font-bold uppercase tracking-wider text-ink-300">
+              Workspace
+            </p>
+            <div className="space-y-0.5">
+              {WORKSPACE_LINKS.map((link) => (
+                <WorkspaceLink key={link.path} serverId={serverId} link={link} onNavigate={closeSidebar} />
+              ))}
+            </div>
+          </div>
           {textChannels.length > 0 && (
             <div>
               <p className="px-2 pb-1 text-[11px] font-bold uppercase tracking-wider text-ink-300">

@@ -55,6 +55,8 @@ import {
   reorderChannels,
 } from "../controllers/channel.controller.js";
 import { getServerPresence } from "../controllers/presence.controller.js";
+import workspaceRoutes from "./workspace.routes.js";
+import resourceRoutes from "./resource.routes.js";
 
 const router = Router();
 
@@ -161,5 +163,9 @@ router.get(
   requireServerPermission(PERMISSIONS.MANAGE_SERVER),
   listInvites
 );
+
+// ---------- collaborative workspace + shared resources (member-scoped) ----------
+router.use("/:serverId/workspace", workspaceRoutes);
+router.use("/:serverId/resources", resourceRoutes);
 
 export default router;

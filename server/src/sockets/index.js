@@ -5,14 +5,17 @@ import logger from "../utils/logger.js";
 import { verifyAccessToken } from "../utils/token.util.js";
 import * as userRepository from "../repositories/user.repository.js";
 import * as threadRepository from "../repositories/thread.repository.js";
+import * as serverRepository from "../repositories/server.repository.js";
+import * as serverMemberRepository from "../repositories/serverMember.repository.js";
 import { loadChannelContext } from "../middleware/channelAuth.js";
 import * as messageService from "../services/message.service.js";
 import * as dmService from "../services/dm.service.js";
 import { setIO } from "./io.js";
-import { channelRoom, threadRoom, userRoom } from "./emitters.js";
+import { channelRoom, threadRoom, userRoom, serverRoom } from "./emitters.js";
 import { objectId } from "../validations/server.validation.js";
 import { safe } from "./ack.js";
 import { registerVoiceHandlers } from "./voice.js";
+import { registerWorkspaceHandlers } from "./workspace.js";
 import {
   registerPresenceHandlers,
   handlePresenceConnect,
@@ -76,6 +79,30 @@ const registerHandlers = (io, socket) => {
       idSchema.parse(threadId);
       await socket.leave(threadRoom(threadId));
       return { threadId };
+    })
+  );
+
+  // Server-wide events (workspace file tree, shared resources): members
+  // opt in per server so broadcasts stay scoped and permission-checked.
+  socket.on(
+    "server:subscribe",
+    safe(async ({ serverId }) => {
+      idSchema.parse(serverId);
+      const server = await serverRepository.findById(serverId);
+      if (!server) throw new Error("Server not found");
+      const membership = await serverMemberRepository.findMembership(serverId, user._id);
+      if (!membership) throw new Error("You are not a member of this server");
+      await socket.join(serverRoom(serverId));
+      return { serverId };
+    })
+  );
+
+  socket.on(
+    "server:unsubscribe",
+    safe(async ({ serverId }) => {
+      idSchema.parse(serverId);
+      await socket.leave(serverRoom(serverId));
+      return { serverId };
     })
   );
 
@@ -180,6 +207,7 @@ export const initSocket = (httpServer) => {
     socket.join(userRoom(socket.user._id));
     registerHandlers(io, socket);
     registerVoiceHandlers(io, socket);
+    registerWorkspaceHandlers(io, socket);
     registerPresenceHandlers(io, socket);
     // Announce online (first device only) after handlers are in place
     handlePresenceConnect(socket).catch((err) =>

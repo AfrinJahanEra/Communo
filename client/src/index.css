@@ -4,12 +4,12 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", monospace;
 
-  /* Cream — canvas + surfaces */
-  --color-cream-50: #fbf9ee;
-  --color-cream-100: #f6f3e0;
-  --color-cream-200: #efebd0;
-  --color-cream-300: #e5e0ba;
-  --color-cream-400: #d6cf9e;
+  /* Cream (now white/neutral) — canvas + surfaces */
+  --color-cream-50: #ffffff;
+  --color-cream-100: #fafafb;
+  --color-cream-200: #f2f2f5;
+  --color-cream-300: #e6e6ec;
+  --color-cream-400: #d4d4dd;
 
   /* Lavender — primary */
   --color-lav-50: #f4f1fa;
@@ -23,7 +23,7 @@
   --color-lav-800: #4b3d66;
   --color-lav-900: #352b49;
 
-  /* Ink — neutral text on cream */
+  /* Ink — neutral text on white */
   --color-ink-900: #2c2733;
   --color-ink-700: #4a4453;
   --color-ink-500: #6f6879;
