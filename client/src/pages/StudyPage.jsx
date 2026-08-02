@@ -60,7 +60,7 @@ const StudyPage = () => {
       try {
         const data = await resourceService.listResources(serverId, {
           ...(search.trim() ? { search: search.trim() } : {}),
-          limit: 100,
+          limit: 5,
         });
         if (!alive) return;
         setResources(data.resources);

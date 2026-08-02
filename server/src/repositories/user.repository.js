@@ -12,6 +12,18 @@ export const findByUsername = (username) => User.findOne({ username });
 export const findByEmailOrUsername = (email, username) =>
   User.findOne({ $or: [{ email }, { username }] });
 
+export const searchByQuery = (query) =>
+  User.find({
+    isActive: true,
+    $or: [
+      { username: { $regex: query, $options: "i" } },
+      { displayName: { $regex: query, $options: "i" } },
+    ],
+  })
+    .select("username displayName avatar")
+    .sort({ username: 1 })
+    .limit(8);
+
 export const findByIdWithPassword = (id) => User.findById(id).select("+password");
 
 export const create = (data) => User.create(data);

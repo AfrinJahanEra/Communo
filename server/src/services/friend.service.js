@@ -53,12 +53,65 @@ export const sendRequest = async (user, payload) => {
   return { request, autoAccepted: false };
 };
 
+const normalizeRequestUser = (user) => {
+  if (!user) return null;
+  if (typeof user === "object" && typeof user.toObject === "function") {
+    const plain = user.toObject();
+    return publicUser(plain);
+  }
+  if (typeof user === "object" && (user._id || user.username)) {
+    return publicUser(user);
+  }
+  return user;
+};
+
+const normalizeRequest = (request) => {
+  if (!request) return null;
+  const plain = typeof request.toObject === "function" ? request.toObject() : request;
+  return {
+    ...plain,
+    requesterId: normalizeRequestUser(plain.requesterId),
+    recipientId: normalizeRequestUser(plain.recipientId),
+  };
+};
+
 export const listRequests = async (userId) => {
   const [incoming, outgoing] = await Promise.all([
     friendRepository.listIncoming(userId),
     friendRepository.listOutgoing(userId),
   ]);
-  return { incoming, outgoing };
+  return {
+    incoming: incoming.map(normalizeRequest),
+    outgoing: outgoing.map(normalizeRequest),
+  };
+};
+
+export const searchUsers = async (userId, query) => {
+  const trimmedQuery = query?.trim();
+  if (!trimmedQuery || trimmedQuery.length < 2) return [];
+
+  const [matches, relationships] = await Promise.all([
+    userRepository.searchByQuery(trimmedQuery),
+    friendRepository.listConnectionUserIds(userId),
+  ]);
+
+  const connectionByUserId = new Map();
+  relationships.forEach((rel) => {
+    const other = isSameUser(rel.requesterId, userId) ? rel.recipientId : rel.requesterId;
+    if (other) {
+      connectionByUserId.set(other.toString(), rel.status);
+    }
+  });
+
+  return matches
+    .map((user) => ({
+      ...publicUser(user),
+      isSelf: isSameUser(user._id, userId),
+      relationshipStatus: isSameUser(user._id, userId)
+        ? null
+        : connectionByUserId.get(user._id.toString()) ?? null,
+    }))
+    .slice(0, 8);
 };
 
 export const acceptRequest = async (user, requestId) => {

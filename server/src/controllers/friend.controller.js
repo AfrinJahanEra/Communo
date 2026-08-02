@@ -15,6 +15,12 @@ export const listRequests = asyncHandler(async (req, res) => {
   return sendOk(res, "Friend requests fetched", { incoming, outgoing });
 });
 
+export const searchUsers = asyncHandler(async (req, res) => {
+  const query = req.validatedQuery?.query ?? req.query?.query;
+  const users = await friendService.searchUsers(req.user._id, query);
+  return sendOk(res, "Users fetched", { users });
+});
+
 export const acceptRequest = asyncHandler(async (req, res) => {
   const request = await friendService.acceptRequest(req.user, req.params.requestId);
   return sendOk(res, "Friend request accepted", { request });
