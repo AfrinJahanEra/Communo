@@ -63,7 +63,7 @@ const InvitePage = () => {
         ) : (
           <>
             <p className="text-xs font-bold uppercase tracking-widest text-lav-600">
-              You've been invited to join
+              {invite.alreadyMember ? "You're already in this server" : "You've been invited to join"}
             </p>
             {invite.server.icon ? (
               <img
@@ -93,8 +93,22 @@ const InvitePage = () => {
               </p>
             )}
 
-            <Button className="mt-6 w-full" loading={joining} onClick={join}>
-              Accept invite
+            {invite.alreadyMember && (
+              <p className="mt-3 text-sm text-ink-500">You can open the server directly from here.</p>
+            )}
+
+            <Button
+              className="mt-6 w-full"
+              loading={joining}
+              onClick={() => {
+                if (invite?.alreadyMember) {
+                  navigate(`/app/servers/${invite.server._id}`, { replace: true });
+                  return;
+                }
+                void join();
+              }}
+            >
+              {invite?.alreadyMember ? "Open server" : "Accept invite"}
             </Button>
             <Link
               to="/app"
