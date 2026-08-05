@@ -33,11 +33,11 @@ const ThreadView = ({ thread, myPermissions, onBack, onThreadChanged, onDeleted 
   const chat = useChat("thread", thread._id);
 
   const isCreator = idOf(thread.createdBy) === String(user?._id);
-  const canManageThreads = hasPermission(myPermissions, PERMISSIONS.MANAGE_THREADS);
-  const canManageThisThread = isCreator || canManageThreads;
+  // const canManageThreads = hasPermission(myPermissions, PERMISSIONS.MANAGE_THREADS);
+  const canManageThisThread = isCreator;
   const canSend =
     !thread.archived &&
-    (!thread.locked || canManageThreads) &&
+    (!thread.locked || isCreator) &&
     hasPermission(myPermissions, PERMISSIONS.SEND_MESSAGES);
 
   const act = async (fn, successTitle) => {
@@ -71,7 +71,7 @@ const ThreadView = ({ thread, myPermissions, onBack, onThreadChanged, onDeleted 
           <p className="truncate text-sm font-bold text-ink-900">{thread.name}</p>
           <p className="flex items-center gap-1.5 text-[10px] text-ink-300">
             {thread.archived && (
-              <span className="flex items-center gap-0.5"><Archive size={10} /> archived</span>
+              <span className="flex items-center gap-0.5"><Archive size={10} /> resolved</span>
             )}
             {thread.locked && (
               <span className="flex items-center gap-0.5"><Lock size={10} /> locked</span>
@@ -87,28 +87,28 @@ const ThreadView = ({ thread, myPermissions, onBack, onThreadChanged, onDeleted 
               </button>
             )}
             items={[
-              !thread.archived && {
-                label: "Archive thread",
+              canManageThisThread && !thread.archived && {
+                label: "Resolve thread",
                 icon: Archive,
-                onClick: () => act(threadService.archiveThread, "Thread archived"),
+                onClick: () => act(threadService.archiveThread, "Thread resolved"),
               },
-              thread.archived && {
-                label: "Unarchive thread",
+              canManageThisThread && thread.archived && {
+                label: "Reopen thread",
                 icon: ArchiveRestore,
-                onClick: () => act(threadService.unarchiveThread, "Thread unarchived"),
+                onClick: () => act(threadService.unarchiveThread, "Thread reopened"),
               },
-              canManageThreads && !thread.locked && {
+              canManageThisThread && !thread.locked && {
                 label: "Lock thread",
                 icon: Lock,
                 onClick: () => act(threadService.lockThread, "Thread locked"),
               },
-              canManageThreads && thread.locked && {
+              canManageThisThread && thread.locked && {
                 label: "Unlock thread",
                 icon: LockOpen,
                 onClick: () => act(threadService.unlockThread, "Thread unlocked"),
               },
-              { divider: true },
-              { label: "Delete thread", icon: Trash2, danger: true, onClick: onDelete },
+              canManageThisThread && { divider: true },
+              canManageThisThread && { label: "Delete thread", icon: Trash2, danger: true, onClick: onDelete },
             ]}
           />
         )}
@@ -122,8 +122,8 @@ const ThreadView = ({ thread, myPermissions, onBack, onThreadChanged, onDeleted 
         canSend={canSend}
         sendDisabledHint={
           thread.archived
-            ? "This thread is archived and read-only."
-            : "This thread is locked by a moderator."
+            ? "This thread is resolved and read-only."
+            : "This thread is locked by the creator."
         }
         emptyTitle="No replies yet"
         emptyBody="Start the discussion below."
@@ -296,7 +296,7 @@ export const ThreadPanel = ({ channel, myPermissions, startFromMessage, onClose 
                   showArchived === archived ? "bg-white text-ink-900 shadow-sm" : "text-ink-300"
                 )}
               >
-                {archived ? "Archived" : "Active"}
+                {archived ? "Resolved" : "Active"}
               </button>
             ))}
           </div>

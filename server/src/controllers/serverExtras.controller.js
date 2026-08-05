@@ -61,7 +61,7 @@ export const listInvites = asyncHandler(async (req, res) => {
 });
 
 export const previewInvite = asyncHandler(async (req, res) => {
-  const invite = await inviteService.previewInvite(req.params.code);
+  const invite = await inviteService.previewInvite(req.params.code, req.user._id);
   return sendOk(res, "Invite fetched", { invite });
 });
 

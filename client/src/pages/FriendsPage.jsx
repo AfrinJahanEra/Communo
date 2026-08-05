@@ -71,6 +71,27 @@ const FriendsPage = () => {
   const [addValue, setAddValue] = useState("");
   const [addBusy, setAddBusy] = useState(false);
   const [addFeedback, setAddFeedback] = useState(null); // { ok, text }
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+
+  const searchQuery = addValue.trim().toLowerCase();
+  const searchMatch = useMemo(() => {
+    if (!searchQuery || searchResults.length === 0) return null;
+
+    return (
+      searchResults.find((user) => {
+        const username = (user?.username || "").toLowerCase();
+        const displayName = (user?.displayName || "").toLowerCase();
+        return username === searchQuery || username.includes(searchQuery) || displayName === searchQuery || displayName.includes(searchQuery);
+      }) ?? null
+    );
+  }, [searchQuery, searchResults]);
+
+  const canSendRequest = Boolean(
+    searchMatch &&
+      searchMatch.relationshipStatus === null &&
+      !searchMatch.isSelf
+  );
 
   const refresh = useCallback(() => {
     friendService.listFriends().then(setFriends).catch(() => setFriends([]));
@@ -81,6 +102,40 @@ const FriendsPage = () => {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    const query = addValue.trim();
+    if (query.length < 2) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+
+    let alive = true;
+    setSearching(true);
+    const timer = window.setTimeout(() => {
+      friendService
+        .searchUsers(query)
+        .then((users) => {
+          if (!alive) return;
+          setSearchResults(users || []);
+        })
+        .catch(() => {
+          if (!alive) return;
+          setSearchResults([]);
+        })
+        .finally(() => {
+          if (!alive) return;
+          setSearching(false);
+        });
+    }, 250);
+
+    return () => {
+      alive = false;
+      window.clearTimeout(timer);
+    };
+  }, [addValue]);
 
   useSocketEvent("friend:request", refresh, [refresh]);
   useSocketEvent("friend:accepted", refresh, [refresh]);
@@ -129,10 +184,22 @@ const FriendsPage = () => {
     await withToast(friendService.blockUser, "User blocked")(idOf(user));
   };
 
-  const submitAdd = async (e) => {
-    e.preventDefault();
-    const username = addValue.trim().toLowerCase();
+  const submitAdd = async (e, usernameOverride) => {
+    if (e?.preventDefault) e.preventDefault();
+    const username = (usernameOverride ?? addValue).trim().toLowerCase();
     if (!username) return;
+
+    const match = searchResults.find((user) => {
+      const candidate = (user?.username || "").toLowerCase();
+      const displayName = (user?.displayName || "").toLowerCase();
+      return candidate === username || candidate.includes(username) || displayName === username || displayName.includes(username);
+    });
+
+    if (!match || ["pending", "accepted"].includes(match.relationshipStatus)) {
+      setAddFeedback({ ok: false, text: "Select a valid user to send a request to." });
+      return;
+    }
+
     setAddBusy(true);
     setAddFeedback(null);
     try {
@@ -144,6 +211,7 @@ const FriendsPage = () => {
           : `Friend request sent to ${username}.`,
       });
       setAddValue("");
+      setSearchResults([]);
       refresh();
     } catch (err) {
       setAddFeedback({ ok: false, text: apiMessage(err, "Could not send the request") });
@@ -269,18 +337,67 @@ const FriendsPage = () => {
       <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
         <div className="mx-auto w-full max-w-2xl space-y-5">
           {/* Add friend */}
-          <form onSubmit={submitAdd} className="card space-y-2 p-4">
+          <form onSubmit={(e) => submitAdd(e)} className="card space-y-2 p-4">
             <p className="text-sm font-bold text-ink-900">Add a friend</p>
             <div className="flex gap-2">
-              <Input
-                placeholder="Enter a username, e.g. ada_lovelace"
-                value={addValue}
-                onChange={(e) => {
-                  setAddValue(e.target.value);
-                  setAddFeedback(null);
-                }}
-              />
-              <Button type="submit" loading={addBusy} disabled={!addValue.trim()}>
+              <div className="relative flex-1">
+                <Input
+                  placeholder="Enter a username, e.g. ada_lovelace"
+                  value={addValue}
+                  onChange={(e) => {
+                    setAddValue(e.target.value);
+                    setAddFeedback(null);
+                  }}
+                  className="w-full"
+                />
+                {addValue.trim().length >= 2 && (
+                  <div className="absolute left-0 right-0 top-full z-10 mt-2 overflow-hidden rounded-2xl border border-cream-300 bg-white shadow-lg">
+                    {searching ? (
+                      <div className="px-3 py-2 text-xs text-ink-400">Searching…</div>
+                    ) : searchResults.length > 0 ? (
+                      <ul className="max-h-56 divide-y divide-cream-200 overflow-auto">
+                        {searchResults.map((user) => {
+                          const relationshipLabel = user.isSelf
+                            ? "You"
+                            : user.relationshipStatus === "accepted"
+                              ? "Friends"
+                              : user.relationshipStatus === "pending"
+                                ? "Request sent"
+                                : "Add";
+
+                          return (
+                            <li key={user._id}>
+                              <button
+                                type="button"
+                                disabled={user.isSelf || ["pending", "accepted"].includes(user.relationshipStatus)}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  if (user.isSelf || ["pending", "accepted"].includes(user.relationshipStatus)) return;
+                                  setAddValue(user.username);
+                                  void submitAdd(null, user.username);
+                                }}
+                                className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition hover:bg-cream-50 disabled:cursor-not-allowed disabled:opacity-70"
+                              >
+                                <Avatar user={user} size="sm" />
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-sm font-semibold text-ink-900">
+                                    {displayNameOf(user) || `@${user.username}`}
+                                  </p>
+                                  <p className="truncate text-xs text-ink-400">@{user.username}</p>
+                                </div>
+                                <span className="text-xs font-semibold text-lav-700">{relationshipLabel}</span>
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : (
+                      <div className="px-3 py-2 text-xs text-ink-400">No people found.</div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <Button type="submit" loading={addBusy} disabled={!canSendRequest || !addValue.trim()}>
                 <UserPlus size={15} /> Send
               </Button>
             </div>

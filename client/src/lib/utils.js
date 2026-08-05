@@ -71,7 +71,14 @@ export const parseContent = (content = "") => {
   return segments.length ? segments : [{ type: "text", value: content }];
 };
 
-export const idOf = (value) => (value && typeof value === "object" ? value._id : value)?.toString();
+export const idOf = (value) => {
+  if (!value) return undefined;
+  if (typeof value === "object" && value !== null) {
+    if ("_id" in value) return value._id?.toString();
+    return value.toString();
+  }
+  return value.toString();
+};
 
 /** "1.4 MB" style human-readable file sizes. */
 export const formatBytes = (bytes = 0) => {
