@@ -32,6 +32,7 @@ const HomeLayout = () => {
     "dm:new",
     ({ message }) => {
       const id = idOf(message.dmId);
+      const authorId = idOf(message.authorId);
       setDms((prev) => {
         const idx = prev.findIndex((d) => d._id === id);
         if (idx === -1) {
@@ -40,10 +41,23 @@ const HomeLayout = () => {
         }
         const next = [...prev];
         const [dm] = next.splice(idx, 1);
-        return [{ ...dm, lastMessageAt: message.createdAt }, ...next];
+        const unreadCount =
+          authorId === String(user?._id) || id === dmId ? dm.unreadCount || 0 : (dm.unreadCount || 0) + 1;
+        return [{ ...dm, lastMessageAt: message.createdAt, unreadCount }, ...next];
       });
     },
-    [refreshDms]
+    [dmId, refreshDms, user?._id]
+  );
+
+  useSocketEvent(
+    "dm:read",
+    ({ dmId: readDmId, userId, unreadCount }) => {
+      if (String(userId) !== String(user?._id)) return;
+      setDms((prev) =>
+        prev.map((dm) => (dm._id === String(readDmId) ? { ...dm, unreadCount } : dm))
+      );
+    },
+    [user?._id]
   );
 
   return (
@@ -94,7 +108,14 @@ const HomeLayout = () => {
                           )
                         }
                       >
-                        <Avatar user={partner} size="sm" showStatus />
+                        <span className="relative shrink-0">
+                          <Avatar user={partner} size="sm" showStatus />
+                          {Number(dm.unreadCount) > 0 && (
+                            <span className="absolute -right-1 -top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full border-2 border-cream-50 bg-lav-600 px-1 text-[10px] font-bold leading-none text-white shadow-sm">
+                              {Number(dm.unreadCount) > 99 ? "99+" : dm.unreadCount}
+                            </span>
+                          )}
+                        </span>
                         <span className="truncate text-sm font-medium">{displayNameOf(partner)}</span>
                       </NavLink>
                     </li>

@@ -3,6 +3,15 @@ import DirectMessage from "../models/DirectMessage.js";
 
 const USER_FIELDS = "username displayName avatar";
 
+export const toDmResponse = (dm, userId) => {
+  if (!dm) return dm;
+  const obj = dm.toObject({ flattenMaps: true });
+  const key = userId?.toString();
+  obj.unreadCount = key ? Number(obj.unreadCounts?.[key] || 0) : 0;
+  delete obj.unreadCounts;
+  return obj;
+};
+
 // ---------- DM channels ----------
 
 export const findByPair = (userA, userB) =>
@@ -23,10 +32,25 @@ export const findChannelById = (id) =>
 export const listByUser = (userId) =>
   DmChannel.find({ participantIds: userId })
     .sort({ lastMessageAt: -1 })
-    .populate("participantIds", USER_FIELDS);
+    .populate("participantIds", USER_FIELDS)
+    .then((dms) => dms.map((dm) => toDmResponse(dm, userId)));
 
 export const touchChannel = (id) =>
   DmChannel.findByIdAndUpdate(id, { lastMessageAt: new Date() });
+
+export const incrementUnreadCount = (dmId, userId) =>
+  DmChannel.findByIdAndUpdate(
+    dmId,
+    { $inc: { [`unreadCounts.${userId.toString()}`]: 1 } },
+    { new: true }
+  ).populate("participantIds", USER_FIELDS);
+
+export const markReadForUser = (dmId, userId) =>
+  DmChannel.findByIdAndUpdate(
+    dmId,
+    { $set: { [`unreadCounts.${userId.toString()}`]: 0 } },
+    { new: true }
+  ).populate("participantIds", USER_FIELDS);
 
 // ---------- DM messages ----------
 

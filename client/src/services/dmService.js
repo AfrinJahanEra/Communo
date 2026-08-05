@@ -29,3 +29,8 @@ export const deleteDmMessage = async (messageId) => {
   const { data } = await api.delete(`/dms/messages/${messageId}`);
   return data;
 };
+
+export const markDmRead = async (dmId) => {
+  const { data } = await api.post(`/dms/${dmId}/read`);
+  return data.dm;
+};

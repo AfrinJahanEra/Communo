@@ -30,9 +30,9 @@ export const openDm = async (user, targetUserId) => {
   }
 
   const existing = await dmRepository.findByPair(user._id, targetUserId);
-  if (existing) return { dm: existing, created: false };
+  if (existing) return { dm: dmRepository.toDmResponse(existing, user._id), created: false };
   const dm = await dmRepository.createChannel(user._id, targetUserId);
-  return { dm, created: true };
+  return { dm: dmRepository.toDmResponse(dm, user._id), created: true };
 };
 
 export const listDms = (userId) => dmRepository.listByUser(userId);
@@ -59,8 +59,20 @@ export const sendMessage = async (dm, author, { content }) => {
     content,
   });
   await dmRepository.touchChannel(dm._id);
+  await dmRepository.incrementUnreadCount(dm._id, otherId);
   emitToUsers(participantIds(dm), "dm:new", { message });
   return message;
+};
+
+export const markAsRead = async (dm, userId) => {
+  const updated = await dmRepository.markReadForUser(dm._id, userId);
+  const dmResponse = dmRepository.toDmResponse(updated, userId);
+  emitToUsers([userId], "dm:read", {
+    dmId: dm._id,
+    userId,
+    unreadCount: dmResponse.unreadCount,
+  });
+  return dmResponse;
 };
 
 const resolveCursor = async (dm, before) => {

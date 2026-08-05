@@ -17,6 +17,7 @@ import {
   listDmMessages,
   updateDmMessage,
   deleteDmMessage,
+  markDmRead,
 } from "../controllers/dm.controller.js";
 
 const router = Router();
@@ -51,6 +52,12 @@ router.post(
   validate({ params: dmIdParamSchema, body: createMessageSchema }),
   requireDmAccess,
   sendDmMessage
+);
+router.post(
+  "/:dmId/read",
+  validate({ params: dmIdParamSchema }),
+  requireDmAccess,
+  markDmRead
 );
 
 export default router;

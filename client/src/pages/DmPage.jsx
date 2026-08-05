@@ -9,7 +9,7 @@ import { LoadingScreen } from "../components/ui/Spinner";
 import { useAuth } from "../hooks/useAuth";
 import { useChat } from "../hooks/useChat";
 import { usePresence } from "../hooks/usePresence";
-import { listDms } from "../services/dmService";
+import { listDms, markDmRead } from "../services/dmService";
 import { displayNameOf, dmPartner, STATUS_META, timeAgo } from "../lib/utils";
 
 /* The backend exposes DMs only as a list — resolve one by id from it. */
@@ -21,12 +21,16 @@ const DmPage = () => {
   const { user } = useAuth();
   const { dms, openSidebar } = useOutletContext();
   const { statusOf, lastSeenOf } = usePresence();
+  const userId = user && user._id;
 
   // The sidebar list usually has the DM already; fall back to fetching it.
   const known = dms.find((d) => d._id === dmId);
   const [fetched, setFetched] = useState(null);
   const [notFound, setNotFound] = useState(false);
-  const dm = known || (fetched?._id === dmId ? fetched : null);
+  const fetchedId = fetched && fetched._id;
+  const dm = known || (fetchedId === dmId ? fetched : null);
+  const dmKey = dm && dm._id;
+  const chat = useChat("dm", dm ? dmId : null);
 
   useEffect(() => {
     if (known) return undefined;
@@ -43,7 +47,11 @@ const DmPage = () => {
     };
   }, [dmId, known]);
 
-  const chat = useChat("dm", dm ? dmId : null);
+  useEffect(() => {
+    if (!dm) return undefined;
+    markDmRead(dm._id).catch(() => {});
+    return undefined;
+  }, [dm, dmKey, chat.messages.length]);
 
   if (notFound && !dm) {
     return (
@@ -57,11 +65,12 @@ const DmPage = () => {
   }
   if (!dm) return <LoadingScreen label="Opening conversation…" />;
 
-  const partner = dmPartner(dm, user?._id);
-  const status = statusOf(partner?._id) || "offline";
+  const partner = dmPartner(dm, userId);
+  const partnerId = partner && partner._id;
+  const status = statusOf(partnerId) || "offline";
   const subtitle =
     status === "offline"
-      ? `Last seen ${timeAgo(lastSeenOf(partner?._id))}`
+      ? `Last seen ${timeAgo(lastSeenOf(partnerId))}`
       : STATUS_META[status].label;
 
   return (
@@ -76,7 +85,7 @@ const DmPage = () => {
 
       <ChatPane
         chat={chat}
-        placeholder={`Message @${partner?.username ?? ""}`}
+        placeholder={`Message @${(partner && partner.username) || ""}`}
         canManage={false}
         canPin={false}
         emptyTitle={`This is the start of your conversation with ${displayNameOf(partner)}`}
