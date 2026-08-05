@@ -10,6 +10,10 @@ export const sendRequestSchema = z
     message: "userId or username is required",
   });
 
+export const searchUsersSchema = z.object({
+  query: z.string().trim().min(2).max(30),
+});
+
 export const requestIdParamSchema = z.object({
   requestId: objectId("request id"),
 });

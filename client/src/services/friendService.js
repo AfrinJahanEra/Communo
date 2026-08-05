@@ -11,6 +11,11 @@ export const listFriendRequests = async () => {
   return data; // { incoming, outgoing }
 };
 
+export const searchUsers = async (query) => {
+  const { data } = await api.get("/friends/search", { params: { query } });
+  return data.users;
+};
+
 export const acceptFriendRequest = async (requestId) => {
   const { data } = await api.post(`/friends/requests/${requestId}/accept`);
   return data;

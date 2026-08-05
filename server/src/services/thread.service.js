@@ -10,8 +10,7 @@ const MAX_ACTIVE_THREADS_PER_CHANNEL = 50;
 const isCreator = (thread, userId) =>
   thread.createdBy.toString() === userId.toString();
 
-const canManage = (thread, userId, bitfield) =>
-  isCreator(thread, userId) || hasPermission(bitfield, PERMISSIONS.MANAGE_THREADS);
+const canManageThreadActions = (thread, userId) => isCreator(thread, userId);
 
 /**
  * Creates a thread under a text/announcement channel. On announcement
@@ -49,10 +48,10 @@ export const listThreads = (channel, { archived = false } = {}) =>
 
 /** Rename: creator or MANAGE_THREADS; locked threads need MANAGE_THREADS. */
 export const updateThread = async (thread, userId, bitfield, update) => {
-  if (!canManage(thread, userId, bitfield)) {
-    throw ApiError.forbidden("Only the thread creator or a thread manager can edit this thread");
+  if (!canManageThreadActions(thread, userId)) {
+    throw ApiError.forbidden("Only the thread creator can edit this thread");
   }
-  if (thread.locked && !hasPermission(bitfield, PERMISSIONS.MANAGE_THREADS)) {
+  if (thread.locked && !isCreator(thread, userId)) {
     throw ApiError.forbidden("This thread is locked");
   }
   if (thread.archived) {
@@ -61,26 +60,21 @@ export const updateThread = async (thread, userId, bitfield, update) => {
   return threadRepository.updateById(thread._id, update);
 };
 
-/** Archive/unarchive: creator or MANAGE_THREADS; locked needs MANAGE_THREADS. */
+/** Archive/unarchive: creator only. */
 export const setArchived = async (thread, userId, bitfield, archived) => {
-  if (!canManage(thread, userId, bitfield)) {
-    throw ApiError.forbidden(
-      "Only the thread creator or a thread manager can archive this thread"
-    );
-  }
-  if (thread.locked && !hasPermission(bitfield, PERMISSIONS.MANAGE_THREADS)) {
-    throw ApiError.forbidden("This thread is locked");
+  if (!canManageThreadActions(thread, userId, bitfield)) {
+    throw ApiError.forbidden("Only the thread creator can resolve this thread");
   }
   if (thread.archived === archived) {
-    throw ApiError.badRequest(archived ? "Thread is already archived" : "Thread is not archived");
+    throw ApiError.badRequest(archived ? "Thread is already resolved" : "Thread is not resolved");
   }
   return threadRepository.updateById(thread._id, { archived });
 };
 
-/** Lock/unlock is a moderation action: MANAGE_THREADS only. */
-export const setLocked = async (thread, bitfield, locked) => {
-  if (!hasPermission(bitfield, PERMISSIONS.MANAGE_THREADS)) {
-    throw ApiError.forbidden("Only thread managers can lock or unlock threads");
+/** Lock/unlock: creator only. */
+export const setLocked = async (thread, userId, bitfield, locked) => {
+  if (!canManageThreadActions(thread, userId, bitfield)) {
+    throw ApiError.forbidden("Only the thread creator can lock or unlock this thread");
   }
   if (thread.locked === locked) {
     throw ApiError.badRequest(locked ? "Thread is already locked" : "Thread is not locked");
@@ -104,10 +98,8 @@ export const leaveThread = async (thread, userId) => {
 };
 
 export const deleteThread = async (thread, userId, bitfield) => {
-  if (!canManage(thread, userId, bitfield)) {
-    throw ApiError.forbidden(
-      "Only the thread creator or a thread manager can delete this thread"
-    );
+  if (!canManageThreadActions(thread, userId)) {
+    throw ApiError.forbidden("Only the thread creator can delete this thread");
   }
   await withTransaction(async (session) => {
     // Sequential on purpose: a transaction session cannot run parallel ops

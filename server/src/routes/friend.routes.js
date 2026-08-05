@@ -3,6 +3,7 @@ import validate from "../middleware/validate.js";
 import { requireAuth } from "../middleware/auth.js";
 import {
   sendRequestSchema,
+  searchUsersSchema,
   requestIdParamSchema,
   friendUserParamSchema,
   blockUserSchema,
@@ -10,6 +11,7 @@ import {
 import {
   sendRequest,
   listRequests,
+  searchUsers,
   acceptRequest,
   removeRequest,
   listFriends,
@@ -25,6 +27,7 @@ const router = Router();
 router.use(requireAuth);
 
 // ---------- friend requests ----------
+router.get("/search", validate({ query: searchUsersSchema }), searchUsers);
 router.post("/requests", validate({ body: sendRequestSchema }), sendRequest);
 router.get("/requests", listRequests);
 router.post(

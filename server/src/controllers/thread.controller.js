@@ -56,12 +56,12 @@ export const unarchiveThread = asyncHandler(async (req, res) => {
 });
 
 export const lockThread = asyncHandler(async (req, res) => {
-  const thread = await threadService.setLocked(req.thread, req.memberPermissions, true);
+  const thread = await threadService.setLocked(req.thread, req.user._id, req.memberPermissions, true);
   return sendOk(res, "Thread locked", { thread });
 });
 
 export const unlockThread = asyncHandler(async (req, res) => {
-  const thread = await threadService.setLocked(req.thread, req.memberPermissions, false);
+  const thread = await threadService.setLocked(req.thread, req.user._id, req.memberPermissions, false);
   return sendOk(res, "Thread unlocked", { thread });
 });
 

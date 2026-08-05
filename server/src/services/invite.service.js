@@ -35,11 +35,14 @@ const assertUsable = (invite) => {
 };
 
 /** Public preview: lets a user see what they're joining before they join. */
-export const previewInvite = async (code) => {
+export const previewInvite = async (code, userId) => {
   const invite = await inviteRepository.findByCode(code);
   assertUsable(invite);
   const server = await serverRepository.findById(invite.serverId);
   if (!server) throw ApiError.notFound("Invite not found or expired");
+
+  const membership = userId ? await serverMemberRepository.findMembership(server._id, userId) : null;
+
   return {
     code: invite.code,
     server: {
@@ -49,6 +52,7 @@ export const previewInvite = async (code) => {
       icon: server.icon,
       memberCount: server.memberCount,
     },
+    alreadyMember: Boolean(membership),
   };
 };
 

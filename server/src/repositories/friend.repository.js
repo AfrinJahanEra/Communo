@@ -54,6 +54,14 @@ export const listFriends = (userId) =>
     .populate("requesterId", USER_FIELDS)
     .populate("recipientId", USER_FIELDS);
 
+export const listConnectionUserIds = (userId) =>
+  Relationship.find({
+    status: { $in: ["pending", "accepted"] },
+    $or: [{ requesterId: userId }, { recipientId: userId }],
+  })
+    .select("requesterId recipientId status")
+    .lean();
+
 /** Lean accepted edges (ids only) — used for presence fan-out. */
 export const listFriendEdges = (userId) =>
   Relationship.find({
