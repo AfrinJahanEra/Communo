@@ -3,6 +3,7 @@ import { objectId } from "./server.validation.js";
 import {
   createMessageSchema,
   updateMessageSchema,
+  toggleReactionSchema,
   listMessagesQuerySchema,
 } from "./message.validation.js";
 
@@ -19,4 +20,4 @@ export const dmMessageIdParamSchema = z.object({
 });
 
 // DM messages share the exact content/pagination contract with channel messages
-export { createMessageSchema, updateMessageSchema, listMessagesQuerySchema };
+export { createMessageSchema, updateMessageSchema, toggleReactionSchema, listMessagesQuerySchema };

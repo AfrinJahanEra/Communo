@@ -77,3 +77,8 @@ export const unpinMessage = asyncHandler(async (req, res) => {
   );
   return sendOk(res, "Message unpinned", { message });
 });
+
+export const toggleMessageReaction = asyncHandler(async (req, res) => {
+  const message = await messageService.toggleReaction(req.message, req.user._id, req.body);
+  return sendOk(res, "Message reaction updated", { message });
+});

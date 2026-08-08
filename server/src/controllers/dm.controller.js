@@ -33,6 +33,11 @@ export const deleteDmMessage = asyncHandler(async (req, res) => {
   return sendOk(res, "Message deleted");
 });
 
+export const reactDmMessage = asyncHandler(async (req, res) => {
+  const message = await dmService.toggleReaction(req.dm, req.user, req.dmMessage, req.body);
+  return sendOk(res, "Message reaction updated", { message });
+});
+
 export const markDmRead = asyncHandler(async (req, res) => {
   const dm = await dmService.markAsRead(req.dm, req.user._id);
   return sendOk(res, "DM marked as read", { dm });

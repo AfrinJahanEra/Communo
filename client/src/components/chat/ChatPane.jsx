@@ -81,6 +81,7 @@ export const ChatPane = ({
     edit,
     remove,
     togglePin,
+    toggleReaction,
     notifyTyping,
     stopTyping,
   } = chat;
@@ -146,6 +147,14 @@ export const ChatPane = ({
     }
   };
 
+  const onToggleReaction = async (message, emoji) => {
+    try {
+      await toggleReaction(message, emoji);
+    } catch (err) {
+      toast({ type: "error", title: "Reaction failed", body: apiMessage(err) });
+    }
+  };
+
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-cream-50">
       <div
@@ -182,12 +191,14 @@ export const ChatPane = ({
                   <MessageItem
                     message={message}
                     grouped={!newDay && isGrouped(message, prev)}
+                    viewerId={idOf(user?._id)}
                     isMine={idOf(message.authorId) === String(user?._id)}
                     canManage={canManage}
                     canPin={canPin}
                     onEdit={onEdit}
                     onDelete={onDelete}
                     onTogglePin={onTogglePin}
+                    onToggleReaction={onToggleReaction}
                     onStartThread={onStartThread}
                   />
                 </div>

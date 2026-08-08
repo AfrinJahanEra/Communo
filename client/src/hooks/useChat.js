@@ -12,12 +12,14 @@ import {
   sendDmMessage,
   updateDmMessage,
   deleteDmMessage,
+  toggleDmMessageReaction,
 } from "../services/dmService";
 import {
   updateMessage,
   deleteMessage,
   pinMessage,
   unpinMessage,
+  toggleMessageReaction,
 } from "../services/messageService";
 import api from "../lib/api";
 import { useSocketEvent } from "./useSocket";
@@ -50,6 +52,7 @@ const SCOPES = {
     remove: (messageId) => deleteMessage(messageId),
     pin: (messageId) => pinMessage(messageId),
     unpin: (messageId) => unpinMessage(messageId),
+    react: (messageId, emoji) => toggleMessageReaction(messageId, emoji),
   },
   thread: {
     fetch: (id, params) => listThreadMessages(id, params),
@@ -74,6 +77,7 @@ const SCOPES = {
     remove: (messageId) => deleteMessage(messageId),
     pin: (messageId) => pinMessage(messageId),
     unpin: (messageId) => unpinMessage(messageId),
+    react: (messageId, emoji) => toggleMessageReaction(messageId, emoji),
   },
   dm: {
     fetch: (id, params) => listDmMessages(id, params),
@@ -93,6 +97,7 @@ const SCOPES = {
     remove: (messageId) => deleteDmMessage(messageId),
     pin: null,
     unpin: null,
+    react: (messageId, emoji) => toggleDmMessageReaction(messageId, emoji),
   },
 };
 
@@ -310,6 +315,14 @@ export const useChat = (kind, id) => {
     [upsert] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
+  const toggleReaction = useCallback(
+    async (message, emoji) => {
+      const updated = await cfg.react(message._id, emoji);
+      upsert(updated);
+    },
+    [upsert] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
   /** Debounced typing broadcast — call on every keystroke. */
   const typingActive = useRef(false);
   const typingStopTimer = useRef(null);
@@ -349,6 +362,7 @@ export const useChat = (kind, id) => {
     edit,
     remove,
     togglePin,
+    toggleReaction,
     canPin: Boolean(cfg.pin),
     notifyTyping,
     stopTyping,

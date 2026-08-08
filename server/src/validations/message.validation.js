@@ -19,6 +19,10 @@ export const updateMessageSchema = z.object({
   content: messageContent,
 });
 
+export const toggleReactionSchema = z.object({
+  emoji: z.string().trim().min(1, "Reaction emoji is required").max(16),
+});
+
 export const listMessagesQuerySchema = z.object({
   before: objectId("cursor message id").optional(),
   limit: z.coerce.number().int().min(1).max(100).optional().default(50),

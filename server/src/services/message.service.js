@@ -3,7 +3,8 @@ import { CHANNEL_TYPES } from "../constants/channels.js";
 import { PERMISSIONS, hasPermission } from "../constants/permissions.js";
 import * as messageRepository from "../repositories/message.repository.js";
 import * as threadRepository from "../repositories/thread.repository.js";
-import { emitToRoom, messageRoom } from "../sockets/emitters.js";
+import * as serverMemberRepository from "../repositories/serverMember.repository.js";
+import { emitToRoom, emitToUsers, messageRoom } from "../sockets/emitters.js";
 
 const isAuthor = (message, userId) =>
   message.authorId._id
@@ -16,6 +17,44 @@ const resolveCursor = async (before) => {
   const anchor = await messageRepository.findById(before);
   if (!anchor) throw ApiError.badRequest("Cursor message not found");
   return anchor.createdAt;
+};
+
+const applyReactionToggle = (message, userId, emoji) => {
+  const key = userId.toString();
+  const normalized = emoji.trim();
+  const reactions = (message.reactions || []).map((reaction) => ({
+    emoji: reaction.emoji,
+    userIds: (reaction.userIds || []).map((id) => id.toString()),
+  }));
+  const idx = reactions.findIndex((reaction) => reaction.emoji === normalized);
+
+  if (idx === -1) {
+    reactions.push({ emoji: normalized, userIds: [key] });
+    return reactions;
+  }
+
+  const nextIds = reactions[idx].userIds.includes(key)
+    ? reactions[idx].userIds.filter((id) => id !== key)
+    : [...reactions[idx].userIds, key];
+
+  if (nextIds.length === 0) {
+    reactions.splice(idx, 1);
+    return reactions;
+  }
+
+  reactions[idx].userIds = nextIds;
+  return reactions;
+};
+
+const notifyServerMembers = async (serverId, authorId) => {
+  const roster = await serverMemberRepository.listUsersByServer(serverId);
+  const recipients = roster
+    .map((member) => member.userId?._id?.toString() || member.userId?.toString())
+    .filter(Boolean)
+    .filter((id) => id !== authorId.toString());
+  if (recipients.length) {
+    emitToUsers(recipients, "server:notification", { serverId, delta: 1 });
+  }
 };
 
 export const createChannelMessage = async (channel, author, bitfield, { content }) => {
@@ -35,6 +74,7 @@ export const createChannelMessage = async (channel, author, bitfield, { content 
     content,
   });
   emitToRoom(messageRoom(message), "message:new", { message });
+  await notifyServerMembers(channel.serverId, author._id);
   return message;
 };
 
@@ -55,6 +95,7 @@ export const createThreadMessage = async (thread, author, bitfield, { content })
   // Posting makes you a participant and bumps thread activity
   await threadRepository.addParticipant(thread._id, author._id);
   emitToRoom(messageRoom(message), "message:new", { message });
+  await notifyServerMembers(thread.serverId, author._id);
   return message;
 };
 
@@ -133,3 +174,10 @@ export const listChannelPins = (channel) =>
 
 export const listThreadPins = (thread) =>
   messageRepository.findPinnedByScope({ channelId: thread.channelId, threadId: thread._id });
+
+export const toggleReaction = async (message, userId, { emoji }) => {
+  const reactions = applyReactionToggle(message, userId, emoji);
+  const updated = await messageRepository.updateById(message._id, { reactions });
+  emitToRoom(messageRoom(updated), "message:updated", { message: updated });
+  return updated;
+};

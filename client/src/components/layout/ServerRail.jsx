@@ -24,7 +24,7 @@ const RailButton = ({ to, active, label, className, children }) => (
 );
 
 /** Far-left vertical navigation: home, joined servers, create, discover. */
-export const ServerRail = ({ servers, onCreate }) => {
+export const ServerRail = ({ servers, onCreate, notificationCounts = {} }) => {
   const { serverId } = useParams();
 
   return (
@@ -37,6 +37,7 @@ export const ServerRail = ({ servers, onCreate }) => {
 
       {servers.map((server) => {
         const active = serverId === server._id;
+        const count = Number(notificationCounts[server._id] || 0);
         return (
           <RailButton
             key={server._id}
@@ -48,6 +49,11 @@ export const ServerRail = ({ servers, onCreate }) => {
               <img src={server.icon} alt={server.name} className="h-full w-full rounded-[inherit] object-cover" />
             ) : (
               <span className="text-sm font-bold">{initials(server.name)}</span>
+            )}
+            {count > 0 && !active && (
+              <span className="absolute -right-1.5 -top-1.5 min-w-5 rounded-full bg-lav-600 px-1.5 py-0.5 text-center text-[10px] font-bold leading-none text-white">
+                {count > 9 ? "9+" : count}
+              </span>
             )}
           </RailButton>
         );

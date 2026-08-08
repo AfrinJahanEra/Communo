@@ -19,3 +19,8 @@ export const unpinMessage = async (messageId) => {
   const { data } = await api.delete(`/messages/${messageId}/pin`);
   return data.message;
 };
+
+export const toggleMessageReaction = async (messageId, emoji) => {
+  const { data } = await api.post(`/messages/${messageId}/reactions`, { emoji });
+  return data.message;
+};

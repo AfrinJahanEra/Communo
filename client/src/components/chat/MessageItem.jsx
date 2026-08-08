@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MessageSquarePlus, Pencil, Pin, PinOff, Trash2 } from "lucide-react";
+import { MessageSquarePlus, Pencil, Pin, PinOff, SmilePlus, Trash2 } from "lucide-react";
 import { Avatar } from "../ui/Avatar";
 import { CodeBlock } from "./CodeBlock";
 import { cn, displayNameOf, formatTime, parseContent, splitLinks } from "../../lib/utils";
+
+const REACTION_PRESETS = ["👍", "❤️", "😂", "🔥", "🎉", "🤯"];
 
 /** Same-origin links (e.g. invite links) navigate in-app; others open a new tab. */
 const ContentLink = ({ url }) => {
@@ -69,17 +71,20 @@ const ActionButton = ({ icon: Icon, label, danger, onClick }) => (
 export const MessageItem = ({
   message,
   grouped,
+  viewerId,
   isMine,
   canManage, // MANAGE_MESSAGES holders can delete/pin others' messages
   canPin,
   onEdit,
   onDelete,
   onTogglePin,
+  onToggleReaction,
   onStartThread,
 }) => {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const author = typeof message.authorId === "object" ? message.authorId : null;
 
   const startEdit = () => {
@@ -109,6 +114,8 @@ export const MessageItem = ({
     }
     if (e.key === "Escape") setEditing(false);
   };
+
+  const reactions = Array.isArray(message.reactions) ? message.reactions : [];
 
   return (
     <div
@@ -165,6 +172,30 @@ export const MessageItem = ({
             )}
           </div>
         )}
+
+        {!editing && reactions.length > 0 && (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {reactions.map((reaction) => {
+              const users = (reaction.userIds || []).map((id) => id.toString());
+              const mine = users.includes(String(viewerId));
+              return (
+                <button
+                  key={reaction.emoji}
+                  onClick={() => onToggleReaction(message, reaction.emoji)}
+                  className={cn(
+                    "rounded-full border px-2 py-0.5 text-xs transition",
+                    mine
+                      ? "border-lav-300 bg-lav-100 text-lav-700"
+                      : "border-cream-300 bg-white text-ink-500 hover:border-lav-200 hover:text-lav-700"
+                  )}
+                  title="Toggle reaction"
+                >
+                  {reaction.emoji} {users.length}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* hover actions */}
@@ -180,6 +211,30 @@ export const MessageItem = ({
               onClick={() => onTogglePin(message)}
             />
           )}
+          <div className="relative">
+            <ActionButton
+              icon={SmilePlus}
+              label="Add reaction"
+              onClick={() => setPickerOpen((open) => !open)}
+            />
+            {pickerOpen && (
+              <div className="absolute right-0 top-8 z-10 flex gap-1 rounded-lg border border-cream-300 bg-white p-1 shadow-md">
+                {REACTION_PRESETS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    onClick={() => {
+                      onToggleReaction(message, emoji);
+                      setPickerOpen(false);
+                    }}
+                    className="rounded-md px-1.5 py-1 text-sm transition hover:bg-cream-200"
+                    title={`React with ${emoji}`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           {isMine && <ActionButton icon={Pencil} label="Edit" onClick={startEdit} />}
           {(isMine || canManage) && (
             <ActionButton icon={Trash2} label="Delete" danger onClick={() => onDelete(message)} />

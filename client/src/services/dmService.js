@@ -34,3 +34,8 @@ export const markDmRead = async (dmId) => {
   const { data } = await api.post(`/dms/${dmId}/read`);
   return data.dm;
 };
+
+export const toggleDmMessageReaction = async (messageId, emoji) => {
+  const { data } = await api.post(`/dms/messages/${messageId}/reactions`, { emoji });
+  return data.message;
+};

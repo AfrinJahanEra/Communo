@@ -75,6 +75,40 @@ export const markAsRead = async (dm, userId) => {
   return dmResponse;
 };
 
+const applyReactionToggle = (message, userId, emoji) => {
+  const key = userId.toString();
+  const normalized = emoji.trim();
+  const reactions = (message.reactions || []).map((reaction) => ({
+    emoji: reaction.emoji,
+    userIds: (reaction.userIds || []).map((id) => id.toString()),
+  }));
+  const idx = reactions.findIndex((reaction) => reaction.emoji === normalized);
+
+  if (idx === -1) {
+    reactions.push({ emoji: normalized, userIds: [key] });
+    return reactions;
+  }
+
+  const nextIds = reactions[idx].userIds.includes(key)
+    ? reactions[idx].userIds.filter((id) => id !== key)
+    : [...reactions[idx].userIds, key];
+
+  if (nextIds.length === 0) {
+    reactions.splice(idx, 1);
+    return reactions;
+  }
+
+  reactions[idx].userIds = nextIds;
+  return reactions;
+};
+
+export const toggleReaction = async (dm, user, message, { emoji }) => {
+  const reactions = applyReactionToggle(message, user._id, emoji);
+  const updated = await dmRepository.updateMessageById(message._id, { reactions });
+  emitToUsers(participantIds(dm), "dm:updated", { message: updated });
+  return updated;
+};
+
 const resolveCursor = async (dm, before) => {
   if (!before) return undefined;
   const anchor = await dmRepository.findMessageById(before);

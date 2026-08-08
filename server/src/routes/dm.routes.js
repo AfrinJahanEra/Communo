@@ -8,6 +8,7 @@ import {
   dmMessageIdParamSchema,
   createMessageSchema,
   updateMessageSchema,
+  toggleReactionSchema,
   listMessagesQuerySchema,
 } from "../validations/dm.validation.js";
 import {
@@ -17,6 +18,7 @@ import {
   listDmMessages,
   updateDmMessage,
   deleteDmMessage,
+  reactDmMessage,
   markDmRead,
 } from "../controllers/dm.controller.js";
 
@@ -39,6 +41,12 @@ router.delete(
   validate({ params: dmMessageIdParamSchema }),
   requireDmMessageAccess,
   deleteDmMessage
+);
+router.post(
+  "/messages/:messageId/reactions",
+  validate({ params: dmMessageIdParamSchema, body: toggleReactionSchema }),
+  requireDmMessageAccess,
+  reactDmMessage
 );
 
 router.get(

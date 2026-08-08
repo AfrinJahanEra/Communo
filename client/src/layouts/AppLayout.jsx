@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { ServerRail } from "../components/layout/ServerRail";
 import { CreateServerModal } from "../components/modals/CreateServerModal";
@@ -19,8 +19,23 @@ const AppLayout = () => {
   const location = useLocation();
 
   const [servers, setServers] = useState([]);
+  const [serverNotifications, setServerNotifications] = useState({});
   const [createOpen, setCreateOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const activeServerId = useMemo(() => {
+    const match = location.pathname.match(/^\/app\/servers\/([^/]+)/);
+    return match ? match[1] : null;
+  }, [location.pathname]);
+
+  const visibleServerNotifications = useMemo(() => {
+    const known = new Set(servers.map((server) => server._id));
+    return Object.fromEntries(
+      Object.entries(serverNotifications).filter(
+        ([serverId, count]) => known.has(serverId) && serverId !== activeServerId && Number(count) > 0
+      )
+    );
+  }, [activeServerId, serverNotifications, servers]);
 
   const refreshServers = useCallback(async () => {
     try {
@@ -41,6 +56,16 @@ const AppLayout = () => {
       alive = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!activeServerId) return;
+    // Opening a server marks its pending rail notifications as seen.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setServerNotifications((prev) => {
+      if (!prev[activeServerId]) return prev;
+      return { ...prev, [activeServerId]: 0 };
+    });
+  }, [activeServerId]);
 
   // ---- global notifications ----
   useSocketEvent(
@@ -81,9 +106,27 @@ const AppLayout = () => {
     [user?._id, location.pathname, toast]
   );
 
+  useSocketEvent(
+    "server:notification",
+    ({ serverId, delta }) => {
+      const id = String(serverId || "");
+      if (!id) return;
+      if (id === activeServerId) return;
+      setServerNotifications((prev) => ({
+        ...prev,
+        [id]: Math.max(0, Number(prev[id] || 0) + Number(delta || 1)),
+      }));
+    },
+    [activeServerId]
+  );
+
   return (
     <div className="flex h-full overflow-hidden">
-      <ServerRail servers={servers} onCreate={() => setCreateOpen(true)} />
+      <ServerRail
+        servers={servers}
+        onCreate={() => setCreateOpen(true)}
+        notificationCounts={visibleServerNotifications}
+      />
       <div className="min-w-0 flex-1">
         <Outlet context={{ servers, refreshServers, openUserSettings: () => setSettingsOpen(true) }} />
       </div>
