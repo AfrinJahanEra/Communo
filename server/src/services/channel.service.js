@@ -7,6 +7,7 @@ import * as channelRepository from "../repositories/channel.repository.js";
 import * as roleRepository from "../repositories/role.repository.js";
 import * as threadRepository from "../repositories/thread.repository.js";
 import * as messageRepository from "../repositories/message.repository.js";
+import { emitToUsers } from "../sockets/emitters.js";
 
 const assertRolesBelongToServer = async (roleIds, serverId) => {
   const uniqueIds = [...new Set(roleIds)];
@@ -29,12 +30,25 @@ export const createChannel = async (server, createdBy, data) => {
 };
 
 /** Lists only the channels the member is allowed to see. */
-export const listChannels = async (server, membership) => {
+export const listChannels = async (server, membership, userId) => {
   const [channels, bitfield] = await Promise.all([
     channelRepository.findByServer(server._id),
     resolveMemberPermissions(server, membership),
   ]);
-  return channels.filter((channel) => canAccessChannel(channel, membership, bitfield));
+  return channels
+    .filter((channel) => canAccessChannel(channel, membership, bitfield))
+    .map((channel) => channelRepository.toChannelResponse(channel, userId));
+};
+
+/** Zeroes the caller's unread count for this channel. */
+export const markChannelRead = async (channel, userId) => {
+  const updated = await channelRepository.markReadForUser(channel._id, userId);
+  const response = channelRepository.toChannelResponse(updated, userId);
+  emitToUsers([userId], "channel:read", {
+    channelId: channel._id,
+    unreadCount: response.unreadCount,
+  });
+  return response;
 };
 
 export const updateChannel = async (channel, update) => {

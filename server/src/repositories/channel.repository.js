@@ -1,5 +1,15 @@
 import Channel from "../models/Channel.js";
 
+/** Flattens the per-user unreadCounts map to a single count for `userId`. */
+export const toChannelResponse = (channel, userId) => {
+  if (!channel) return channel;
+  const obj = channel.toObject({ flattenMaps: true });
+  const key = userId?.toString();
+  obj.unreadCount = key ? Number(obj.unreadCounts?.[key] || 0) : 0;
+  delete obj.unreadCounts;
+  return obj;
+};
+
 export const create = async (data, session) => {
   const [channel] = await Channel.create([data], { session });
   return channel;
@@ -32,4 +42,21 @@ export const setPositions = (serverId, orderedIds) =>
         update: { $set: { position: index } },
       },
     }))
+  );
+
+/** Bumps the unread count of every listed user by 1 in a single write. */
+export const incrementUnreadForUsers = (channelId, userIds) => {
+  if (!userIds.length) return Promise.resolve(null);
+  const inc = {};
+  userIds.forEach((id) => {
+    inc[`unreadCounts.${id.toString()}`] = 1;
+  });
+  return Channel.findByIdAndUpdate(channelId, { $inc: inc });
+};
+
+export const markReadForUser = (channelId, userId) =>
+  Channel.findByIdAndUpdate(
+    channelId,
+    { $set: { [`unreadCounts.${userId.toString()}`]: 0 } },
+    { returnDocument: "after" }
   );

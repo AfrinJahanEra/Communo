@@ -1,6 +1,7 @@
 import asyncHandler from "../utils/asyncHandler.js";
 import { sendOk, sendCreated } from "../utils/response.js";
 import * as threadService from "../services/thread.service.js";
+import * as threadRepository from "../repositories/thread.repository.js";
 
 // Channel-scoped (mounted under /channels/:channelId/threads)
 
@@ -15,14 +16,20 @@ export const createThread = asyncHandler(async (req, res) => {
 });
 
 export const listThreads = asyncHandler(async (req, res) => {
-  const threads = await threadService.listThreads(req.channel, req.validatedQuery);
+  const threads = await threadService.listThreads(req.channel, req.validatedQuery, req.user._id);
   return sendOk(res, "Threads fetched", { threads });
 });
 
 // Thread-scoped (mounted under /threads/:threadId)
 
 export const getThread = asyncHandler(async (req, res) => {
-  return sendOk(res, "Thread fetched", { thread: req.thread });
+  const thread = threadRepository.toThreadResponse(req.thread, req.user._id);
+  return sendOk(res, "Thread fetched", { thread });
+});
+
+export const markThreadRead = asyncHandler(async (req, res) => {
+  const thread = await threadService.markThreadRead(req.thread, req.user._id);
+  return sendOk(res, "Thread marked as read", { thread });
 });
 
 export const updateThread = asyncHandler(async (req, res) => {

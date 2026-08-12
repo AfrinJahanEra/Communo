@@ -48,7 +48,7 @@ export const Avatar = ({ user, size = "md", showStatus = false, className }) => 
           {initials(name)}
         </span>
       )}
-      {status && (
+      {status === "online" && (
         <span
           className={cn(
             "absolute bottom-0 right-0 rounded-full border-cream-50",

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   NavLink,
   Outlet,
+  useLocation,
   useNavigate,
   useOutletContext,
   useParams,
@@ -31,6 +32,7 @@ import { CreateChannelModal } from "../components/modals/CreateChannelModal";
 import { ServerSettingsModal } from "../components/modals/ServerSettingsModal";
 import { useAuth } from "../hooks/useAuth";
 import { usePresence } from "../hooks/usePresence";
+import { useSocketEvent } from "../hooks/useSocket";
 import { useToast } from "../hooks/useToast";
 import { apiMessage } from "../lib/api";
 import { cn, idOf } from "../lib/utils";
@@ -66,6 +68,7 @@ const WorkspaceLink = ({ serverId, link, onNavigate }) => (
 
 const ChannelLink = ({ serverId, channel, onNavigate }) => {
   const Icon = CHANNEL_ICONS[channel.type] || Hash;
+  const unread = Number(channel.unreadCount) || 0;
   return (
     <NavLink
       to={`/app/servers/${serverId}/channels/${channel._id}`}
@@ -81,7 +84,14 @@ const ChannelLink = ({ serverId, channel, onNavigate }) => {
     >
       <Icon size={15} className="shrink-0 opacity-70" />
       <span className="truncate">{channel.name}</span>
-      {channel.isPrivate && <Lock size={11} className="ml-auto shrink-0 opacity-50" />}
+      <span className="ml-auto flex shrink-0 items-center gap-1">
+        {unread > 0 && (
+          <span className="min-w-4 rounded-full bg-lav-600 px-1.5 py-0.5 text-center text-[10px] font-bold leading-none text-white">
+            {unread > 99 ? "99+" : unread}
+          </span>
+        )}
+        {channel.isPrivate && <Lock size={11} className="shrink-0 opacity-50" />}
+      </span>
     </NavLink>
   );
 };
@@ -94,6 +104,7 @@ const ServerLayout = () => {
   const { prime } = usePresence();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [data, setData] = useState(null); // { server, roles, channels, members }
   const [error, setError] = useState("");
@@ -159,6 +170,67 @@ const ServerLayout = () => {
   const myPermissions = useMemo(
     () => computePermissions(data?.server, myMembership, data?.roles, user?._id),
     [data?.server, myMembership, data?.roles, user?._id]
+  );
+
+  const activeChannelId = useMemo(() => {
+    const match = location.pathname.match(/^\/app\/servers\/[^/]+\/channels\/([^/]+)/);
+    return match ? match[1] : null;
+  }, [location.pathname]);
+
+  // Opening a channel marks its pending unread badge as seen locally; the
+  // actual read receipt is persisted by ChannelPage's markChannelRead call.
+  useEffect(() => {
+    if (!activeChannelId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setData((prev) => {
+      if (!prev) return prev;
+      const target = prev.channels.find((c) => c._id === activeChannelId);
+      if (!target || !target.unreadCount) return prev;
+      return {
+        ...prev,
+        channels: prev.channels.map((c) =>
+          c._id === activeChannelId ? { ...c, unreadCount: 0 } : c
+        ),
+      };
+    });
+  }, [activeChannelId]);
+
+  useSocketEvent(
+    "channel:unread",
+    ({ channelId, delta }) => {
+      const id = String(channelId || "");
+      if (!id || id === activeChannelId) return;
+      setData((prev) => {
+        if (!prev || !prev.channels.some((c) => c._id === id)) return prev;
+        return {
+          ...prev,
+          channels: prev.channels.map((c) =>
+            c._id === id
+              ? { ...c, unreadCount: Math.max(0, Number(c.unreadCount || 0) + Number(delta || 1)) }
+              : c
+          ),
+        };
+      });
+    },
+    [activeChannelId]
+  );
+
+  useSocketEvent(
+    "channel:read",
+    ({ channelId, unreadCount }) => {
+      const id = String(channelId || "");
+      if (!id) return;
+      setData((prev) => {
+        if (!prev || !prev.channels.some((c) => c._id === id)) return prev;
+        return {
+          ...prev,
+          channels: prev.channels.map((c) =>
+            c._id === id ? { ...c, unreadCount: Number(unreadCount || 0) } : c
+          ),
+        };
+      });
+    },
+    []
   );
 
   const isOwner = data?.server && idOf(data.server.ownerId) === String(user?._id);

@@ -59,6 +59,11 @@ export const listChannelPins = async (channelId) => {
   return data.messages;
 };
 
+export const markChannelRead = async (channelId) => {
+  const { data } = await api.post(`/channels/${channelId}/read`);
+  return data.channel;
+};
+
 export const getVoiceParticipants = async (channelId) => {
   const { data } = await api.get(`/channels/${channelId}/voice`);
   return data.participants;

@@ -2,6 +2,7 @@ import ApiError from "../utils/ApiError.js";
 import { CHANNEL_TYPES } from "../constants/channels.js";
 import { PERMISSIONS, hasPermission } from "../constants/permissions.js";
 import * as messageRepository from "../repositories/message.repository.js";
+import * as channelRepository from "../repositories/channel.repository.js";
 import * as threadRepository from "../repositories/thread.repository.js";
 import * as serverMemberRepository from "../repositories/serverMember.repository.js";
 import { emitToRoom, emitToUsers, messageRoom } from "../sockets/emitters.js";
@@ -46,15 +47,13 @@ const applyReactionToggle = (message, userId, emoji) => {
   return reactions;
 };
 
-const notifyServerMembers = async (serverId, authorId) => {
+/** All server members except the author — the shared notification roster. */
+const recipientsExcluding = async (serverId, authorId) => {
   const roster = await serverMemberRepository.listUsersByServer(serverId);
-  const recipients = roster
+  return roster
     .map((member) => member.userId?._id?.toString() || member.userId?.toString())
     .filter(Boolean)
     .filter((id) => id !== authorId.toString());
-  if (recipients.length) {
-    emitToUsers(recipients, "server:notification", { serverId, delta: 1 });
-  }
 };
 
 export const createChannelMessage = async (channel, author, bitfield, { content }) => {
@@ -74,7 +73,16 @@ export const createChannelMessage = async (channel, author, bitfield, { content 
     content,
   });
   emitToRoom(messageRoom(message), "message:new", { message });
-  await notifyServerMembers(channel.serverId, author._id);
+  const recipients = await recipientsExcluding(channel.serverId, author._id);
+  if (recipients.length) {
+    emitToUsers(recipients, "server:notification", { serverId: channel.serverId, delta: 1 });
+    await channelRepository.incrementUnreadForUsers(channel._id, recipients);
+    emitToUsers(recipients, "channel:unread", {
+      channelId: channel._id,
+      serverId: channel.serverId,
+      delta: 1,
+    });
+  }
   return message;
 };
 
@@ -95,7 +103,17 @@ export const createThreadMessage = async (thread, author, bitfield, { content })
   // Posting makes you a participant and bumps thread activity
   await threadRepository.addParticipant(thread._id, author._id);
   emitToRoom(messageRoom(message), "message:new", { message });
-  await notifyServerMembers(thread.serverId, author._id);
+  const recipients = await recipientsExcluding(thread.serverId, author._id);
+  if (recipients.length) {
+    emitToUsers(recipients, "server:notification", { serverId: thread.serverId, delta: 1 });
+    await threadRepository.incrementUnreadForUsers(thread._id, recipients);
+    emitToUsers(recipients, "thread:unread", {
+      threadId: thread._id,
+      channelId: thread.channelId,
+      serverId: thread.serverId,
+      delta: 1,
+    });
+  }
   return message;
 };
 
