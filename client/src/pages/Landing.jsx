@@ -10,6 +10,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { Logo } from "../components/Logo";
+import DotField from "../components/landing/DotField";
 
 const FEATURES = [
   {
@@ -45,9 +46,11 @@ const FEATURES = [
 ];
 
 const Landing = () => (
-  <div className="min-h-full">
+  <div className="relative min-h-full overflow-hidden">
+    <DotField />
+
     {/* Nav */}
-    <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+    <header className="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
       <Logo />
       <nav className="flex items-center gap-2">
         <Link to="/login" className="btn-ghost">
@@ -60,7 +63,7 @@ const Landing = () => (
     </header>
 
     {/* Hero */}
-    <section className="mx-auto max-w-4xl px-6 pb-16 pt-14 text-center sm:pt-20">
+    <section className="relative z-10 mx-auto max-w-4xl px-6 pb-16 pt-14 text-center sm:pt-20">
       <span className="inline-flex items-center gap-1.5 rounded-full border border-lav-300 bg-lav-50 px-3 py-1 text-xs font-semibold text-lav-700">
         <Zap size={13} /> Built for CSE students
       </span>
@@ -83,10 +86,13 @@ const Landing = () => (
     </section>
 
     {/* Feature grid */}
-    <section className="mx-auto max-w-6xl px-6 pb-20">
+    <section className="relative z-10 mx-auto max-w-6xl px-6 pb-20">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {FEATURES.map(({ icon: Icon, title, body }) => (
-          <div key={title} className="card p-6 transition hover:-translate-y-0.5 hover:shadow-md">
+          <div
+            key={title}
+            className="card bg-cream-50/85 p-6 backdrop-blur-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          >
             <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-lav-100 text-lav-600">
               <Icon size={22} />
             </span>
@@ -97,7 +103,7 @@ const Landing = () => (
       </div>
     </section>
 
-    <footer className="border-t border-cream-300 py-8 text-center text-xs text-ink-300">
+    <footer className="relative z-10 border-t border-cream-300 py-8 text-center text-xs text-ink-300">
       CodeCord — a collaborative communication platform for CSE students.
     </footer>
   </div>
