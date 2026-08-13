@@ -14,12 +14,21 @@ const requestMeta = (req) => ({
 
 // @route POST /api/v1/auth/register
 export const register = asyncHandler(async (req, res) => {
-  const { user, accessToken, refreshToken } = await authService.register(
+  const { user, accessToken, refreshToken, requiresVerification } = await authService.register(
     req.body,
     requestMeta(req)
   );
-  setAuthCookies(res, accessToken, refreshToken);
-  sendCreated(res, "Registration successful", { user, accessToken });
+
+  // No session is issued while the email is unverified
+  if (accessToken) setAuthCookies(res, accessToken, refreshToken);
+
+  sendCreated(
+    res,
+    requiresVerification
+      ? "Registration successful. Check your inbox to verify your email."
+      : "Registration successful",
+    { user, accessToken: accessToken || null, requiresVerification: Boolean(requiresVerification) }
+  );
 });
 
 // @route POST /api/v1/auth/login
@@ -27,6 +36,33 @@ export const login = asyncHandler(async (req, res) => {
   const { user, accessToken, refreshToken } = await authService.login(req.body, requestMeta(req));
   setAuthCookies(res, accessToken, refreshToken);
   sendOk(res, "Login successful", { user, accessToken });
+});
+
+// @route POST /api/v1/auth/verify-email
+export const verifyEmail = asyncHandler(async (req, res) => {
+  const { user, accessToken, refreshToken } = await authService.verifyEmail(
+    req.body.token,
+    requestMeta(req)
+  );
+  setAuthCookies(res, accessToken, refreshToken);
+  sendOk(res, "Email verified successfully", { user, accessToken });
+});
+
+// @route POST /api/v1/auth/resend-verification
+export const resendVerification = asyncHandler(async (req, res) => {
+  await authService.resendVerification(req.body.email);
+  // Deliberately identical whether or not the account exists
+  sendOk(res, "If that account exists and is unverified, a new link has been sent.");
+});
+
+// @route POST /api/v1/auth/google
+export const googleAuth = asyncHandler(async (req, res) => {
+  const { user, accessToken, refreshToken } = await authService.googleAuth(
+    req.body.credential,
+    requestMeta(req)
+  );
+  setAuthCookies(res, accessToken, refreshToken);
+  sendOk(res, "Signed in with Google", { user, accessToken });
 });
 
 // @route POST /api/v1/auth/refresh

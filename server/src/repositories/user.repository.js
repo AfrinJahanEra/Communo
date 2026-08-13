@@ -9,6 +9,8 @@ export const findByEmail = (email, { withPassword = false } = {}) => {
 
 export const findByUsername = (username) => User.findOne({ username });
 
+export const findByGoogleId = (googleId) => User.findOne({ googleId });
+
 export const findByEmailOrUsername = (email, username) =>
   User.findOne({ $or: [{ email }, { username }] });
 

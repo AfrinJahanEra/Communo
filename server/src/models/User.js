@@ -2,6 +2,11 @@ import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import { GLOBAL_ROLES, GLOBAL_ROLE_VALUES } from "../constants/roles.js";
 
+export const AUTH_PROVIDERS = {
+  LOCAL: "local",
+  GOOGLE: "google",
+};
+
 const userSchema = new mongoose.Schema(
   {
     username: {
@@ -24,9 +29,32 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, "Password is required"],
+      // Google-only accounts never have a password
+      required: [
+        function () {
+          return this.authProvider === AUTH_PROVIDERS.LOCAL;
+        },
+        "Password is required",
+      ],
       minlength: [8, "Password must be at least 8 characters"],
       select: false, // never returned by queries unless explicitly selected
+    },
+    authProvider: {
+      type: String,
+      enum: Object.values(AUTH_PROVIDERS),
+      default: AUTH_PROVIDERS.LOCAL,
+    },
+    googleId: {
+      type: String,
+      // sparse: documents without the field are excluded from the unique index.
+      // Never store `null` here or the second null would collide.
+      unique: true,
+      sparse: true,
+      default: undefined,
+    },
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
     },
     displayName: {
       type: String,
@@ -62,12 +90,14 @@ const userSchema = new mongoose.Schema(
 
 // Hash password whenever it is set/changed
 userSchema.pre("save", async function () {
-  if (!this.isModified("password")) return;
+  if (!this.isModified("password") || !this.password) return;
   const salt = await bcrypt.genSalt(12);
   this.password = await bcrypt.hash(this.password, salt);
 });
 
 userSchema.methods.comparePassword = function (candidate) {
+  // Google-only accounts have no hash to compare against
+  if (!this.password) return false;
   return bcrypt.compare(candidate, this.password);
 };
 
@@ -75,6 +105,7 @@ userSchema.methods.comparePassword = function (candidate) {
 userSchema.methods.toJSON = function () {
   const obj = this.toObject();
   delete obj.password;
+  delete obj.googleId;
   delete obj.__v;
   return obj;
 };

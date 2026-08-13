@@ -1,19 +1,31 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Logo } from "../components/Logo";
+import { GoogleButton } from "../components/GoogleButton";
 import { Button } from "../components/ui/Button";
 import { Field, Input } from "../components/ui/Input";
 import { useAuth } from "../hooks/useAuth";
+import { useToast } from "../hooks/useToast";
 import { apiMessage } from "../lib/api";
+import * as authService from "../services/authService";
+
+/** The backend flags unverified accounts with this code on a 403. */
+const isUnverified = (err) =>
+  err?.response?.data?.errors?.some((e) => e.code === "EMAIL_NOT_VERIFIED");
 
 const Login = () => {
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { toast } = useToast();
   const [form, setForm] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState("");
+  const [unverifiedEmail, setUnverifiedEmail] = useState("");
+  const [resending, setResending] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  const redirectTo = location.state?.from?.pathname || "/app";
 
   const set = (key) => (e) => {
     setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -31,15 +43,43 @@ const Login = () => {
   const onSubmit = async (e) => {
     e.preventDefault();
     setServerError("");
+    setUnverifiedEmail("");
     if (!validate()) return;
     setSubmitting(true);
     try {
       await login({ email: form.email.trim(), password: form.password });
-      navigate(location.state?.from?.pathname || "/app", { replace: true });
+      navigate(redirectTo, { replace: true });
     } catch (err) {
-      setServerError(apiMessage(err, "Unable to log in"));
+      if (isUnverified(err)) {
+        setUnverifiedEmail(form.email.trim());
+      } else {
+        setServerError(apiMessage(err, "Unable to log in"));
+      }
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const onResend = async () => {
+    setResending(true);
+    try {
+      await authService.resendVerification(unverifiedEmail);
+      navigate("/check-email", { state: { email: unverifiedEmail } });
+    } catch (err) {
+      toast({ type: "error", title: "Could not send", body: apiMessage(err) });
+    } finally {
+      setResending(false);
+    }
+  };
+
+  const onGoogleCredential = async (credential) => {
+    setServerError("");
+    setUnverifiedEmail("");
+    try {
+      await loginWithGoogle(credential);
+      navigate(redirectTo, { replace: true });
+    } catch (err) {
+      setServerError(apiMessage(err, "Google sign-in failed"));
     }
   };
 
@@ -58,6 +98,25 @@ const Login = () => {
           {serverError && (
             <div className="mt-4 rounded-xl border border-status-dnd/30 bg-status-dnd/10 px-3.5 py-2.5 text-sm text-status-dnd">
               {serverError}
+            </div>
+          )}
+
+          {unverifiedEmail && (
+            <div className="mt-4 rounded-xl border border-lav-300 bg-lav-50 px-3.5 py-3 text-sm text-ink-700">
+              <p className="font-semibold text-ink-900">Verify your email first</p>
+              <p className="mt-1 text-ink-500">
+                We sent a link to {unverifiedEmail}. Check your inbox — and your spam folder.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="mt-3"
+                loading={resending}
+                onClick={onResend}
+              >
+                Resend the link
+              </Button>
             </div>
           )}
 
@@ -86,6 +145,8 @@ const Login = () => {
               Log in
             </Button>
           </form>
+
+          <GoogleButton onCredential={onGoogleCredential} onError={setServerError} />
         </div>
         <p className="mt-5 text-center text-sm text-ink-500">
           New to CodeCord?{" "}
