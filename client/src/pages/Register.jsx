@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Logo } from "../components/Logo";
+import { GoogleButton } from "../components/GoogleButton";
 import { Button } from "../components/ui/Button";
 import { Field, Input } from "../components/ui/Input";
 import { useAuth } from "../hooks/useAuth";
 import { apiMessage } from "../lib/api";
 
 const Register = () => {
-  const { register } = useAuth();
+  const { register, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ username: "", email: "", password: "", confirm: "" });
   const [errors, setErrors] = useState({});
@@ -44,17 +45,34 @@ const Register = () => {
     setServerError("");
     if (!validate()) return;
     setSubmitting(true);
+    const email = form.email.trim();
     try {
-      await register({
+      const data = await register({
         username: form.username.trim().toLowerCase(),
-        email: form.email.trim(),
+        email,
         password: form.password,
       });
-      navigate("/app", { replace: true });
+
+      // No session is issued until the email is confirmed
+      if (data.requiresVerification) {
+        navigate("/check-email", { state: { email }, replace: true });
+      } else {
+        navigate("/app", { replace: true });
+      }
     } catch (err) {
       setServerError(apiMessage(err, "Unable to create your account"));
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const onGoogleCredential = async (credential) => {
+    setServerError("");
+    try {
+      await loginWithGoogle(credential);
+      navigate("/app", { replace: true });
+    } catch (err) {
+      setServerError(apiMessage(err, "Google sign-up failed"));
     }
   };
 
@@ -120,6 +138,8 @@ const Register = () => {
               Create account
             </Button>
           </form>
+
+          <GoogleButton onCredential={onGoogleCredential} onError={setServerError} label="or sign up with" />
         </div>
         <p className="mt-5 text-center text-sm text-ink-500">
           Already have an account?{" "}

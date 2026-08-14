@@ -3,6 +3,13 @@ import { z } from "zod";
 
 dotenv.config();
 
+/** "true"/"false" strings from .env — z.coerce.boolean() would treat "false" as true. */
+const booleanString = (defaultValue) =>
+  z
+    .enum(["true", "false"])
+    .default(defaultValue)
+    .transform((value) => value === "true");
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   PORT: z.coerce.number().default(5000),
@@ -24,6 +31,22 @@ const envSchema = z.object({
   JDOODLE_CLIENT_SECRET: z.string().optional(),
   GROQ_API_KEY: z.string().optional(),
   GROQ_MODEL: z.string().default("llama-3.3-70b-versatile"),
+
+  // SMTP — when unset, verification links are logged to the console instead
+  // of emailed, so local development works without a mail account.
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().default(587),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  MAIL_FROM: z.string().default("CodeCord <no-reply@codecord.local>"),
+  EMAIL_VERIFICATION_EXPIRES_HOURS: z.coerce.number().default(24),
+
+  // Set to "false" to let unverified users log in (useful while testing).
+  REQUIRE_EMAIL_VERIFICATION: booleanString("true"),
+
+  // Google Sign-In: the OAuth *client ID* only. The client secret is not
+  // needed because the browser sends us an ID token we verify by signature.
+  GOOGLE_CLIENT_ID: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -41,6 +64,10 @@ const env = {
   ...parsed.data,
   isProduction: parsed.data.NODE_ENV === "production",
   isDevelopment: parsed.data.NODE_ENV === "development",
+  isMailConfigured: Boolean(
+    parsed.data.SMTP_HOST && parsed.data.SMTP_USER && parsed.data.SMTP_PASS
+  ),
+  isGoogleConfigured: Boolean(parsed.data.GOOGLE_CLIENT_ID),
 };
 
 export default env;

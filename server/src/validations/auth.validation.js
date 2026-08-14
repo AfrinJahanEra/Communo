@@ -27,3 +27,21 @@ export const loginSchema = z.object({
   email,
   password: z.string().min(1, "Password is required"),
 });
+
+export const verifyEmailSchema = z.object({
+  // 48 random bytes rendered as hex = 96 characters
+  token: z
+    .string()
+    .trim()
+    .min(32, "Invalid verification token")
+    .max(256, "Invalid verification token")
+    .regex(/^[a-f0-9]+$/, "Invalid verification token"),
+});
+
+export const resendVerificationSchema = z.object({
+  email,
+});
+
+export const googleAuthSchema = z.object({
+  credential: z.string().trim().min(1, "Google credential is required"),
+});

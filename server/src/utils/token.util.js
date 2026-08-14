@@ -16,10 +16,16 @@ export const verifyAccessToken = (token) => jwt.verify(token, env.JWT_ACCESS_SEC
 /** Opaque refresh token: random bytes, only its hash is persisted. */
 export const generateRefreshToken = () => crypto.randomBytes(64).toString("hex");
 
+/** Opaque single-use token for email links (verification, password reset). */
+export const generateOpaqueToken = (bytes = 48) => crypto.randomBytes(bytes).toString("hex");
+
 export const hashToken = (token) => crypto.createHash("sha256").update(token).digest("hex");
 
 export const refreshTokenExpiryDate = () =>
   new Date(Date.now() + env.REFRESH_TOKEN_EXPIRES_DAYS * 24 * 60 * 60 * 1000);
+
+export const emailVerificationExpiryDate = () =>
+  new Date(Date.now() + env.EMAIL_VERIFICATION_EXPIRES_HOURS * 60 * 60 * 1000);
 
 const baseCookieOptions = {
   httpOnly: true,

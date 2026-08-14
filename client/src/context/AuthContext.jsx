@@ -33,8 +33,25 @@ export const AuthProvider = ({ children }) => {
     return data.user;
   }, []);
 
+  /**
+   * Returns the full response rather than the user: when verification is
+   * required no session exists yet, so the caller redirects to /check-email
+   * instead of into the app.
+   */
   const register = useCallback(async (payload) => {
     const data = await authService.register(payload);
+    if (data.accessToken) setUser(data.user);
+    return data;
+  }, []);
+
+  const verifyEmail = useCallback(async (token) => {
+    const data = await authService.verifyEmail(token);
+    setUser(data.user);
+    return data.user;
+  }, []);
+
+  const loginWithGoogle = useCallback(async (credential) => {
+    const data = await authService.googleLogin(credential);
     setUser(data.user);
     return data.user;
   }, []);
@@ -50,8 +67,8 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const value = useMemo(
-    () => ({ user, booting, login, register, logout, setUser }),
-    [user, booting, login, register, logout]
+    () => ({ user, booting, login, register, verifyEmail, loginWithGoogle, logout, setUser }),
+    [user, booting, login, register, verifyEmail, loginWithGoogle, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

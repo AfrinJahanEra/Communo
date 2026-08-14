@@ -6,6 +6,8 @@ import ServerLayout from "./layouts/ServerLayout";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import CheckEmail from "./pages/CheckEmail";
+import VerifyEmail from "./pages/VerifyEmail";
 import FriendsPage from "./pages/FriendsPage";
 import DmPage from "./pages/DmPage";
 import DiscoverPage from "./pages/DiscoverPage";
@@ -34,6 +36,15 @@ const App = () => (
         </RedirectIfAuth>
       }
     />
+
+    {/*
+      Deliberately unguarded. RedirectIfAuth would bounce the user away from
+      /verify-email the moment verification succeeds and a session appears,
+      before the success state could render.
+    */}
+    <Route path="/check-email" element={<CheckEmail />} />
+    <Route path="/verify-email" element={<VerifyEmail />} />
+
     <Route
       path="/invite/:code"
       element={
