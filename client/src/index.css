@@ -38,6 +38,7 @@
   --animate-fade-in: fade-in 0.18s ease-out;
   --animate-slide-up: slide-up 0.22s ease-out;
   --animate-pop: pop 0.16s ease-out;
+  --animate-marquee: marquee 32s linear infinite;
 }
 
 @keyframes fade-in {
@@ -51,6 +52,10 @@
 @keyframes pop {
   from { opacity: 0; transform: scale(0.96); }
   to { opacity: 1; transform: scale(1); }
+}
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
 }
 
 html, body, #root {

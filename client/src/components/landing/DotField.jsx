@@ -1,22 +1,84 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
-const PALETTE = [0x8f7ab8, 0xa795cc, 0x6c8cd5, 0xe0a458, 0xd66b7c, 0x5fb8a8];
+// A smooth 3-stop wash across the app's own lavender scale (light -> mid -> deep)
+// instead of a multi-hue "confetti" palette.
+const COLOR_STOPS = [0xbcb0da, 0x8f7ab8, 0x614f83];
+const HIGHLIGHT_COLOR = 0x352b49;
 
-const REPEL_RADIUS = 95;
-const REPEL_STRENGTH = 2.6;
+const TARGET_DOT_COUNT = 140;
+const DOT_TEXTURE_SIZE = 64;
+
+// Cursor-repel physics: dots push away from wherever the pointer is, then
+// spring back to their grid position once it moves on.
+const REPEL_RADIUS = 90;
+const REPEL_STRENGTH = 2.4;
 const SPRING_K = 0.02;
 const DAMPING = 0.85;
-const CONNECT_DIST = 55;
-const PICK_RADIUS = 16;
-const CLICK_THRESHOLD = 6;
-const MAX_SEGMENTS = 1400;
-const SELECT_COLOR = 0x352b49;
 
-// Light, interactive "confetti" dot field inspired by antigravity.google's hero
-// graphic: dots drift with the cursor, spring back home, and draw constellation
-// lines to nearby neighbors. Any dot can be dragged, and clicking one dot then
-// another draws (or removes) a permanent connection between them.
+/** Cheap deterministic hash -> [0, 1), the seed for value noise below. */
+const hash2 = (x, y) => {
+  const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453123;
+  return s - Math.floor(s);
+};
+
+/** Smooth 2D value noise (bilinear-interpolated hash grid) -> [0, 1). */
+const noise2D = (x, y) => {
+  const xi = Math.floor(x);
+  const yi = Math.floor(y);
+  const xf = x - xi;
+  const yf = y - yi;
+  const u = xf * xf * (3 - 2 * xf);
+  const v = yf * yf * (3 - 2 * yf);
+  const a = hash2(xi, yi);
+  const b = hash2(xi + 1, yi);
+  const c = hash2(xi, yi + 1);
+  const d = hash2(xi + 1, yi + 1);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+};
+
+const smoothstep = (edge0, edge1, x) => {
+  const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+};
+
+/** Soft rounded-square sprite, reused across every dot. */
+const makeDotTexture = () => {
+  const canvas = document.createElement("canvas");
+  canvas.width = DOT_TEXTURE_SIZE;
+  canvas.height = DOT_TEXTURE_SIZE;
+  const ctx = canvas.getContext("2d");
+  const pad = 4;
+  const r = DOT_TEXTURE_SIZE * 0.3;
+  const size = DOT_TEXTURE_SIZE - pad * 2;
+  ctx.fillStyle = "#fff";
+  ctx.beginPath();
+  ctx.roundRect(pad, pad, size, size, r);
+  ctx.fill();
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  return texture;
+};
+
+const colorAt = (stops, x, y) => {
+  const n = noise2D(x * 0.0022 + 12.3, y * 0.0022 - 7.1);
+  return n < 0.5
+    ? stops[0].clone().lerp(stops[1], n / 0.5)
+    : stops[1].clone().lerp(stops[2], (n - 0.5) / 0.5);
+};
+
+/**
+ * Ambient dot field inspired by antigravity.google's hero background, kept
+ * sparse and simple: a light, evenly-spaced scatter of rounded-square points
+ * in a lavender color wash, faded out behind the hero copy so it never sits
+ * on top of the text. Dots physically push away from wherever the cursor is
+ * and spring back once it moves on. A slow pulse ring also drifts through on
+ * its own (easing toward the cursor on hover) and gently grows nearby dots.
+ * Press a dot and drag to another to connect them (a live preview line
+ * follows the pointer); drag between two already-connected dots again to
+ * remove that link.
+ */
 const DotField = () => {
   const mountRef = useRef(null);
 
@@ -47,220 +109,191 @@ const DotField = () => {
     renderer.setSize(width, height);
     mount.appendChild(renderer.domElement);
 
-    const dotGeometry = new THREE.CircleGeometry(1, 16);
-    const materials = PALETTE.map(
-      (color) => new THREE.MeshBasicMaterial({ color })
-    );
+    const dotTexture = makeDotTexture();
+    const colorStops = COLOR_STOPS.map((c) => new THREE.Color(c));
+    const highlightColor = new THREE.Color(HIGHLIGHT_COLOR);
 
     let dots = [];
-    let manualConnections = [];
-    let selectedDot = null;
+    let dragDot = null; // dot the current press-drag started from, if any
+    let connections = []; // [dotA, dotB][]
+    let connectionLines = null;
 
-    const ringGeometry = new THREE.RingGeometry(1, 1.35, 20);
-    const ringMaterial = new THREE.MeshBasicMaterial({
-      color: SELECT_COLOR,
+    const previewGeometry = new THREE.BufferGeometry();
+    previewGeometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(6), 3));
+    const previewMaterial = new THREE.LineBasicMaterial({
+      color: highlightColor,
       transparent: true,
-      opacity: 0.85,
+      opacity: 0.6,
     });
-    const selectRing = new THREE.Mesh(ringGeometry, ringMaterial);
-    selectRing.visible = false;
-    scene.add(selectRing);
+    const previewLine = new THREE.Line(previewGeometry, previewMaterial);
+    previewLine.visible = false;
+    scene.add(previewLine);
 
-    const clearSelection = () => {
-      selectedDot = null;
-      selectRing.visible = false;
+    const rebuildConnectionLines = () => {
+      if (connectionLines) {
+        scene.remove(connectionLines);
+        connectionLines.geometry.dispose();
+        connectionLines.material.dispose();
+        connectionLines = null;
+      }
+      if (!connections.length) return;
+      const positions = new Float32Array(connections.length * 2 * 3);
+      connections.forEach(([a, b], i) => {
+        const base = i * 6;
+        positions[base] = a.pos.x;
+        positions[base + 1] = a.pos.y;
+        positions[base + 2] = 0.1;
+        positions[base + 3] = b.pos.x;
+        positions[base + 4] = b.pos.y;
+        positions[base + 5] = 0.1;
+      });
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+      const material = new THREE.LineBasicMaterial({
+        color: highlightColor,
+        transparent: true,
+        opacity: 0.5,
+      });
+      connectionLines = new THREE.LineSegments(geometry, material);
+      scene.add(connectionLines);
+    };
+
+    // Dots keep moving (repel/spring) after a connection is made, so the
+    // line's endpoints need to track their current position every frame.
+    const updateConnectionLinePositions = () => {
+      if (!connectionLines) return;
+      const positions = connectionLines.geometry.attributes.position.array;
+      connections.forEach(([a, b], i) => {
+        const base = i * 6;
+        positions[base] = a.pos.x;
+        positions[base + 1] = a.pos.y;
+        positions[base + 3] = b.pos.x;
+        positions[base + 4] = b.pos.y;
+      });
+      connectionLines.geometry.attributes.position.needsUpdate = true;
+    };
+
+    const toggleConnection = (a, b) => {
+      const idx = connections.findIndex(
+        ([x, y]) => (x === a && y === b) || (x === b && y === a)
+      );
+      if (idx >= 0) connections.splice(idx, 1);
+      else connections.push([a, b]);
+      rebuildConnectionLines();
     };
 
     const buildDots = () => {
-      dots.forEach((d) => scene.remove(d.mesh));
+      dots.forEach((d) => {
+        scene.remove(d.sprite);
+        d.material.dispose();
+      });
       dots = [];
-      manualConnections = [];
-      clearSelection();
+      connections = [];
+      dragDot = null;
+      rebuildConnectionLines();
 
-      // Keep-out box around the hero copy so dots frame the text instead of
-      // sitting on top of it.
-      const exclude = {
-        halfW: Math.min(width * 0.32, 420),
-        halfH: Math.min(height * 0.28, 260),
-        y: -height * 0.04,
+      // Soft keep-clear zone behind the hero heading/subtext: dots fade out
+      // toward its center instead of a hard cutoff, so the copy stays readable.
+      const textHalfW = Math.min(width * 0.32, 440);
+      const textHalfH = Math.min(height * 0.24, 230);
+      const textY = -height * 0.05;
+      const fadeAt = (x, y) => {
+        const nx = Math.abs(x) / textHalfW;
+        const ny = Math.abs(y - textY) / textHalfH;
+        return smoothstep(0.5, 1.1, Math.max(nx, ny));
       };
-      const inExclude = (x, y) =>
-        Math.abs(x) < exclude.halfW && Math.abs(y - exclude.y) < exclude.halfH;
 
-      const haloCount = Math.round((width * height) / 14000);
-      const scatterCount = Math.round((width * height) / 22000);
-      const maxOuter = Math.min(width, height) * 0.62;
+      // Jittered grid: an even, sparse spread that still reads as organic
+      // (a cheap stand-in for the blue-noise/Poisson-disc fill the reference uses).
+      const cellSize = Math.sqrt((width * height) / TARGET_DOT_COUNT);
+      const cols = Math.ceil(width / cellSize) + 1;
+      const rows = Math.ceil(height / cellSize) + 1;
+      const jitter = cellSize * 0.42;
 
-      for (let i = 0; i < haloCount; i++) {
-        let x, y;
-        let attempts = 0;
-        do {
-          const t = Math.sqrt(Math.random());
-          const radius = t * maxOuter;
-          const angle = Math.random() * Math.PI * 2;
-          x = Math.cos(angle) * radius;
-          y = Math.sin(angle) * radius * 0.75 - height * 0.05;
-          attempts++;
-        } while (inExclude(x, y) && attempts < 8);
-        if (inExclude(x, y)) continue;
-        dots.push(makeDot(x, y));
+      for (let cy = 0; cy < rows; cy++) {
+        for (let cx = 0; cx < cols; cx++) {
+          const baseX = -width / 2 + cx * cellSize + cellSize / 2;
+          const baseY = -height / 2 + cy * cellSize + cellSize / 2;
+          const x = baseX + (noise2D(cx * 3.1, cy * 7.7) - 0.5) * 2 * jitter;
+          const y = baseY + (noise2D(cx * 7.7 + 40, cy * 3.1 + 40) - 0.5) * 2 * jitter;
+
+          const baseRadius = 2.1 + Math.random() * 1.1;
+          const material = new THREE.SpriteMaterial({
+            map: dotTexture,
+            color: colorAt(colorStops, x, y),
+            transparent: true,
+            opacity: fadeAt(x, y),
+            depthWrite: false,
+          });
+          const sprite = new THREE.Sprite(material);
+          sprite.position.set(x, y, 0);
+          scene.add(sprite);
+
+          dots.push({
+            sprite,
+            material,
+            baseRadius,
+            home: { x, y },
+            pos: { x, y },
+            vel: { x: 0, y: 0 },
+            scale: 0.35,
+            baseColor: material.color.clone(),
+          });
+        }
       }
-      for (let i = 0; i < scatterCount; i++) {
-        const x = (Math.random() - 0.5) * width;
-        const y = (Math.random() - 0.5) * height;
-        if (inExclude(x, y)) continue;
-        dots.push(makeDot(x, y));
-      }
-    };
-
-    const makeDot = (x, y) => {
-      const radius = 2.5 + Math.random() * 3;
-      const material = materials[Math.floor(Math.random() * materials.length)];
-      const mesh = new THREE.Mesh(dotGeometry, material);
-      mesh.position.set(x, y, 0);
-      mesh.scale.set(radius, radius, 1);
-      scene.add(mesh);
-      return {
-        mesh,
-        radius,
-        home: { x, y },
-        pos: { x, y },
-        vel: { x: 0, y: 0 },
-        dragging: false,
-      };
     };
 
     buildDots();
 
-    // Constellation lines between nearby dots
-    const lineGeometry = new THREE.BufferGeometry();
-    const linePositions = new Float32Array(MAX_SEGMENTS * 2 * 3);
-    const lineColors = new Float32Array(MAX_SEGMENTS * 2 * 3);
-    lineGeometry.setAttribute(
-      "position",
-      new THREE.BufferAttribute(linePositions, 3)
-    );
-    lineGeometry.setAttribute("color", new THREE.BufferAttribute(lineColors, 3));
-    const lineMaterial = new THREE.LineBasicMaterial({
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.35,
-    });
-    const lines = new THREE.LineSegments(lineGeometry, lineMaterial);
-    scene.add(lines);
-    const tmpColor = new THREE.Color();
-
-    const mouseWorld = { x: 0, y: 1e6 };
+    const mouseWorld = { x: 0, y: 0 };
     let hasPointer = false;
-    let draggedDot = null;
-    let pointerDownInfo = null;
-
     const toWorld = (clientX, clientY) => ({
       x: clientX - width / 2,
       y: height / 2 - clientY,
     });
+    const handlePointerMove = (event) => {
+      const w = toWorld(event.clientX, event.clientY);
+      mouseWorld.x = w.x;
+      mouseWorld.y = w.y;
+      hasPointer = true;
+    };
+    const handlePointerLeave = () => {
+      hasPointer = false;
+    };
+    window.addEventListener("pointermove", handlePointerMove);
+    mount.addEventListener("pointerleave", handlePointerLeave);
 
-    const findNearestDot = (w) => {
+    // ---- press a dot, drag, release on another to connect them ----
+    // Rendered dots are only a few px across, so pick by proximity in world
+    // space (which maps 1:1 to CSS px here) rather than exact hit-testing —
+    // far more forgiving for an actual pointing device.
+    const PICK_RADIUS = 16;
+    const findNearestDot = (worldX, worldY) => {
       let closest = null;
       let closestDist = PICK_RADIUS;
       for (const dot of dots) {
-        const dx = dot.pos.x - w.x;
-        const dy = dot.pos.y - w.y;
-        const dist = Math.hypot(dx, dy);
-        if (dist < closestDist + dot.radius) {
+        const dist = Math.hypot(dot.pos.x - worldX, dot.pos.y - worldY);
+        if (dist < closestDist) {
           closest = dot;
           closestDist = dist;
         }
       }
       return closest;
     };
-
-    const toggleConnection = (a, b) => {
-      const idx = manualConnections.findIndex(
-        ([x, y]) => (x === a && y === b) || (x === b && y === a)
-      );
-      if (idx >= 0) {
-        manualConnections.splice(idx, 1);
-      } else {
-        manualConnections.push([a, b]);
-      }
-    };
-
-    const handlePointerMove = (event) => {
-      const w = toWorld(event.clientX, event.clientY);
-      mouseWorld.x = w.x;
-      mouseWorld.y = w.y;
-      hasPointer = true;
-      if (draggedDot) {
-        draggedDot.pos.x += (w.x - draggedDot.pos.x) * 0.35;
-        draggedDot.pos.y += (w.y - draggedDot.pos.y) * 0.35;
-      }
-    };
-
     const handlePointerDown = (event) => {
       const w = toWorld(event.clientX, event.clientY);
-      const closest = findNearestDot(w);
-      pointerDownInfo = {
-        dot: closest,
-        clientX: event.clientX,
-        clientY: event.clientY,
-      };
-      if (closest) {
-        closest.dragging = true;
-        draggedDot = closest;
-        mount.style.cursor = "grabbing";
-      }
+      const dot = findNearestDot(w.x, w.y);
+      if (dot) dragDot = dot;
     };
-
     const handlePointerUp = (event) => {
-      const info = pointerDownInfo;
-      pointerDownInfo = null;
-
-      if (draggedDot) {
-        const moved = info
-          ? Math.hypot(
-              event.clientX - info.clientX,
-              event.clientY - info.clientY
-            )
-          : Infinity;
-        const clickedDot = draggedDot;
-
-        clickedDot.dragging = false;
-        clickedDot.vel.x = 0;
-        clickedDot.vel.y = 0;
-        draggedDot = null;
-        mount.style.cursor = "";
-
-        if (moved < CLICK_THRESHOLD) {
-          // A tap/click on a dot: select it, or connect it to a
-          // previously-selected dot.
-          if (!selectedDot) {
-            selectedDot = clickedDot;
-            selectRing.visible = true;
-          } else if (selectedDot === clickedDot) {
-            clearSelection();
-          } else {
-            toggleConnection(selectedDot, clickedDot);
-            clearSelection();
-          }
-        } else {
-          // A real drag: the dot settles wherever it was dropped.
-          clickedDot.home.x = clickedDot.pos.x;
-          clickedDot.home.y = clickedDot.pos.y;
-        }
-      } else {
-        clearSelection();
-      }
+      if (!dragDot) return;
+      const w = toWorld(event.clientX, event.clientY);
+      const target = findNearestDot(w.x, w.y);
+      if (target && target !== dragDot) toggleConnection(dragDot, target);
+      dragDot = null;
     };
-
-    const handlePointerLeave = () => {
-      hasPointer = false;
-    };
-
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", handlePointerUp);
     mount.addEventListener("pointerdown", handlePointerDown);
-    mount.addEventListener("pointerleave", handlePointerLeave);
+    window.addEventListener("pointerup", handlePointerUp);
 
     let resizeTimer;
     const handleResize = () => {
@@ -279,95 +312,118 @@ const DotField = () => {
     };
     window.addEventListener("resize", handleResize);
 
+    const sizeFor = (dot) => dot.baseRadius * 2 * (0.75 + dot.scale * 0.6);
+
+    const applyRestingScale = () => {
+      for (const dot of dots) {
+        dot.sprite.scale.set(sizeFor(dot), sizeFor(dot), 1);
+      }
+    };
+
+    const cleanup = () => {
+      clearTimeout(resizeTimer);
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("pointerup", handlePointerUp);
+      mount.removeEventListener("pointerleave", handlePointerLeave);
+      mount.removeEventListener("pointerdown", handlePointerDown);
+      mount.removeChild(renderer.domElement);
+      dots.forEach((d) => d.material.dispose());
+      if (connectionLines) {
+        connectionLines.geometry.dispose();
+        connectionLines.material.dispose();
+      }
+      previewGeometry.dispose();
+      previewMaterial.dispose();
+      dotTexture.dispose();
+      renderer.dispose();
+    };
+
+    if (prefersReducedMotion) {
+      applyRestingScale();
+      renderer.render(scene, camera);
+      return cleanup;
+    }
+
+    const clock = new THREE.Clock();
+    const ring = { x: 0, y: 0 };
+    const minSpan = Math.min(width, height);
+    const ringRadiusBase = minSpan * 0.22;
+    const ringBand = minSpan * 0.08;
+
     let frameId;
     const animate = () => {
-      for (const dot of dots) {
-        if (dot.dragging) {
-          dot.mesh.position.set(dot.pos.x, dot.pos.y, 0);
-          continue;
-        }
+      const t = clock.getElapsedTime();
 
-        if (hasPointer && !prefersReducedMotion) {
-          const dx = dot.pos.x - mouseWorld.x;
-          const dy = dot.pos.y - mouseWorld.y;
-          const dist = Math.hypot(dx, dy) || 0.001;
-          if (dist < REPEL_RADIUS) {
-            const force = (1 - dist / REPEL_RADIUS) * REPEL_STRENGTH;
-            dot.vel.x += (dx / dist) * force;
-            dot.vel.y += (dy / dist) * force;
+      // Ambient drift so the ring is always alive, even before the visitor
+      // moves the mouse — then eases toward the cursor while hovering.
+      const driftX = (noise2D(t * 0.12, 5.2) - 0.5) * 2 * width * 0.12;
+      const driftY = (noise2D(t * 0.12, 91.4) - 0.5) * 2 * height * 0.12;
+      const targetX = hasPointer ? mouseWorld.x * 0.5 + driftX * 0.3 : driftX;
+      const targetY = hasPointer ? mouseWorld.y * 0.5 + driftY * 0.3 : driftY;
+      const ease = hasPointer ? 0.05 : 0.02;
+      ring.x += (targetX - ring.x) * ease;
+      ring.y += (targetY - ring.y) * ease;
+
+      const ringRadius =
+        ringRadiusBase + Math.sin(t * 0.9) * ringRadiusBase * 0.12 + Math.cos(t * 1.7) * ringRadiusBase * 0.08;
+
+      // While dragging, highlight the origin dot plus whatever dot is
+      // currently under the pointer — the pair that would connect on release.
+      const hoverTarget = dragDot ? findNearestDot(mouseWorld.x, mouseWorld.y) : null;
+
+      for (const dot of dots) {
+        // Repel from the cursor, then spring back home — this is what
+        // actually moves the dot, wherever the pointer currently is.
+        if (hasPointer) {
+          const rdx = dot.pos.x - mouseWorld.x;
+          const rdy = dot.pos.y - mouseWorld.y;
+          const rdist = Math.hypot(rdx, rdy) || 0.001;
+          if (rdist < REPEL_RADIUS) {
+            const force = (1 - rdist / REPEL_RADIUS) * REPEL_STRENGTH;
+            dot.vel.x += (rdx / rdist) * force;
+            dot.vel.y += (rdy / rdist) * force;
           }
         }
-
         dot.vel.x += (dot.home.x - dot.pos.x) * SPRING_K;
         dot.vel.y += (dot.home.y - dot.pos.y) * SPRING_K;
         dot.vel.x *= DAMPING;
         dot.vel.y *= DAMPING;
         dot.pos.x += dot.vel.x;
         dot.pos.y += dot.vel.y;
-        dot.mesh.position.set(dot.pos.x, dot.pos.y, 0);
+        dot.sprite.position.set(dot.pos.x, dot.pos.y, 0);
+
+        // Ambient ring pulse stays anchored to the dot's grid position, not
+        // its momentarily cursor-displaced one.
+        const dx = dot.home.x - ring.x;
+        const dy = dot.home.y - ring.y;
+        const dist = Math.hypot(dx, dy);
+        const band =
+          smoothstep(ringRadius - ringBand * 2, ringRadius, dist) -
+          smoothstep(ringRadius, ringRadius + ringBand, dist);
+        const isHighlighted = dot === dragDot || dot === hoverTarget;
+        const target = isHighlighted ? 1 : Math.min(1, Math.max(0.16, band * 1.15 + 0.16));
+        // Drag feedback should feel instant; the ambient ring pulse stays slow.
+        dot.scale += (target - dot.scale) * (isHighlighted ? 0.5 : 0.12);
+        const s = sizeFor(dot);
+        dot.sprite.scale.set(s, s, 1);
+        dot.material.color.lerp(isHighlighted ? highlightColor : dot.baseColor, isHighlighted ? 0.5 : 0.15);
       }
 
-      // Rebuild constellation segments among nearby dots
-      let segmentCount = 0;
-      for (let i = 0; i < dots.length && segmentCount < MAX_SEGMENTS; i++) {
-        for (let j = i + 1; j < dots.length && segmentCount < MAX_SEGMENTS; j++) {
-          const a = dots[i];
-          const b = dots[j];
-          const dx = a.pos.x - b.pos.x;
-          const dy = a.pos.y - b.pos.y;
-          const dist = Math.hypot(dx, dy);
-          if (dist < CONNECT_DIST) {
-            const base = segmentCount * 6;
-            linePositions[base] = a.pos.x;
-            linePositions[base + 1] = a.pos.y;
-            linePositions[base + 2] = 0;
-            linePositions[base + 3] = b.pos.x;
-            linePositions[base + 4] = b.pos.y;
-            linePositions[base + 5] = 0;
+      updateConnectionLinePositions();
 
-            const opacity = 1 - dist / CONNECT_DIST;
-            tmpColor.set(0x8f7ab8);
-            const colorBase = segmentCount * 6;
-            lineColors[colorBase] = tmpColor.r * opacity;
-            lineColors[colorBase + 1] = tmpColor.g * opacity;
-            lineColors[colorBase + 2] = tmpColor.b * opacity;
-            lineColors[colorBase + 3] = tmpColor.r * opacity;
-            lineColors[colorBase + 4] = tmpColor.g * opacity;
-            lineColors[colorBase + 5] = tmpColor.b * opacity;
-            segmentCount++;
-          }
-        }
-      }
-      // Persistent user-made connections draw on top, fully opaque.
-      for (const [a, b] of manualConnections) {
-        if (segmentCount >= MAX_SEGMENTS) break;
-        const base = segmentCount * 6;
-        linePositions[base] = a.pos.x;
-        linePositions[base + 1] = a.pos.y;
-        linePositions[base + 2] = 0;
-        linePositions[base + 3] = b.pos.x;
-        linePositions[base + 4] = b.pos.y;
-        linePositions[base + 5] = 0;
-
-        tmpColor.set(SELECT_COLOR);
-        const colorBase = segmentCount * 6;
-        lineColors[colorBase] = tmpColor.r;
-        lineColors[colorBase + 1] = tmpColor.g;
-        lineColors[colorBase + 2] = tmpColor.b;
-        lineColors[colorBase + 3] = tmpColor.r;
-        lineColors[colorBase + 4] = tmpColor.g;
-        lineColors[colorBase + 5] = tmpColor.b;
-        segmentCount++;
-      }
-
-      lineGeometry.attributes.position.needsUpdate = true;
-      lineGeometry.attributes.color.needsUpdate = true;
-      lineGeometry.setDrawRange(0, segmentCount * 2);
-
-      if (selectedDot) {
-        selectRing.position.set(selectedDot.pos.x, selectedDot.pos.y, 0);
-        const s = selectedDot.radius * 2.2;
-        selectRing.scale.set(s, s, 1);
+      if (dragDot) {
+        const pos = previewLine.geometry.attributes.position;
+        pos.array[0] = dragDot.pos.x;
+        pos.array[1] = dragDot.pos.y;
+        pos.array[2] = 0.1;
+        pos.array[3] = mouseWorld.x;
+        pos.array[4] = mouseWorld.y;
+        pos.array[5] = 0.1;
+        pos.needsUpdate = true;
+        previewLine.visible = true;
+      } else {
+        previewLine.visible = false;
       }
 
       renderer.render(scene, camera);
@@ -377,27 +433,14 @@ const DotField = () => {
 
     return () => {
       cancelAnimationFrame(frameId);
-      clearTimeout(resizeTimer);
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerUp);
-      window.removeEventListener("resize", handleResize);
-      mount.removeEventListener("pointerdown", handlePointerDown);
-      mount.removeEventListener("pointerleave", handlePointerLeave);
-      mount.removeChild(renderer.domElement);
-      dotGeometry.dispose();
-      materials.forEach((m) => m.dispose());
-      lineGeometry.dispose();
-      lineMaterial.dispose();
-      ringGeometry.dispose();
-      ringMaterial.dispose();
-      renderer.dispose();
+      cleanup();
     };
   }, []);
 
   return (
     <div
       ref={mountRef}
-      className="fixed inset-0 -z-10"
+      className="pointer-events-auto fixed inset-0"
       style={{ cursor: "default" }}
     />
   );
