@@ -1,4 +1,6 @@
+import { cloudinary } from "../config/cloudinary.js";
 import ApiError from "../utils/ApiError.js";
+import logger from "../utils/logger.js";
 import { CHANNEL_TYPES } from "../constants/channels.js";
 import { PERMISSIONS, hasPermission } from "../constants/permissions.js";
 import * as messageRepository from "../repositories/message.repository.js";
@@ -6,6 +8,15 @@ import * as channelRepository from "../repositories/channel.repository.js";
 import * as threadRepository from "../repositories/thread.repository.js";
 import * as serverMemberRepository from "../repositories/serverMember.repository.js";
 import { emitToRoom, emitToUsers, messageRoom } from "../sockets/emitters.js";
+
+/** Best-effort Cloudinary cleanup; the DB record stays the source of truth. */
+const cleanupAttachments = (attachments = []) => {
+  attachments.forEach((att) => {
+    cloudinary.uploader
+      .destroy(att.publicId, { resource_type: att.resourceType })
+      .catch((err) => logger.warn(`Cloudinary cleanup failed for ${att.publicId}: ${err.message}`));
+  });
+};
 
 const isAuthor = (message, userId) =>
   message.authorId._id
@@ -56,7 +67,7 @@ const recipientsExcluding = async (serverId, authorId) => {
     .filter((id) => id !== authorId.toString());
 };
 
-export const createChannelMessage = async (channel, author, bitfield, { content }) => {
+export const createChannelMessage = async (channel, author, bitfield, { content, attachments }) => {
   if (channel.type === CHANNEL_TYPES.VOICE) {
     throw ApiError.badRequest("Voice channels do not support text messages");
   }
@@ -71,6 +82,7 @@ export const createChannelMessage = async (channel, author, bitfield, { content 
     channelId: channel._id,
     authorId: author._id,
     content,
+    attachments,
   });
   emitToRoom(messageRoom(message), "message:new", { message });
   const recipients = await recipientsExcluding(channel.serverId, author._id);
@@ -86,7 +98,7 @@ export const createChannelMessage = async (channel, author, bitfield, { content 
   return message;
 };
 
-export const createThreadMessage = async (thread, author, bitfield, { content }) => {
+export const createThreadMessage = async (thread, author, bitfield, { content, attachments }) => {
   if (thread.archived) {
     throw ApiError.badRequest("Cannot post in an archived thread");
   }
@@ -99,6 +111,7 @@ export const createThreadMessage = async (thread, author, bitfield, { content })
     threadId: thread._id,
     authorId: author._id,
     content,
+    attachments,
   });
   // Posting makes you a participant and bumps thread activity
   await threadRepository.addParticipant(thread._id, author._id);
@@ -163,6 +176,7 @@ export const deleteMessage = async (message, userId, bitfield) => {
     throw ApiError.forbidden("You do not have permission to delete this message");
   }
   await messageRepository.deleteById(message._id);
+  cleanupAttachments(message.attachments);
   emitToRoom(messageRoom(message), "message:deleted", {
     messageId: message._id,
     channelId: message.channelId,

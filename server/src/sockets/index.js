@@ -13,6 +13,7 @@ import * as dmService from "../services/dm.service.js";
 import { setIO } from "./io.js";
 import { channelRoom, threadRoom, userRoom, serverRoom } from "./emitters.js";
 import { objectId } from "../validations/server.validation.js";
+import { attachmentSchema } from "../validations/message.validation.js";
 import { safe } from "./ack.js";
 import { registerVoiceHandlers } from "./voice.js";
 import { registerWorkspaceHandlers } from "./workspace.js";
@@ -22,15 +23,33 @@ import {
 } from "./presence.js";
 
 const idSchema = objectId("id");
-const sendSchema = z.object({
-  channelId: objectId("channel id").optional(),
-  threadId: objectId("thread id").optional(),
-  content: z.string().trim().min(1).max(2000),
-});
-const dmSendSchema = z.object({
-  dmId: objectId("dm id"),
-  content: z.string().trim().min(1).max(2000),
-});
+// A message needs text or at least one attachment, but not necessarily both
+const messageBody = {
+  content: z.string().trim().max(2000).default(""),
+  attachments: z.array(attachmentSchema).max(10).default([]),
+};
+const requireContentOrAttachments = (data, ctx) => {
+  if (data.content.length === 0 && data.attachments.length === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Message must include text or at least one attachment",
+      path: ["content"],
+    });
+  }
+};
+const sendSchema = z
+  .object({
+    channelId: objectId("channel id").optional(),
+    threadId: objectId("thread id").optional(),
+    ...messageBody,
+  })
+  .superRefine(requireContentOrAttachments);
+const dmSendSchema = z
+  .object({
+    dmId: objectId("dm id"),
+    ...messageBody,
+  })
+  .superRefine(requireContentOrAttachments);
 
 /** Resolves a thread + verifies parent-channel access for the socket user. */
 const loadThreadContext = async (threadId, userId) => {
@@ -110,11 +129,12 @@ const registerHandlers = (io, socket) => {
   socket.on(
     "message:send",
     safe(async (payload) => {
-      const { channelId, threadId, content } = sendSchema.parse(payload);
+      const { channelId, threadId, content, attachments } = sendSchema.parse(payload);
       if (threadId) {
         const { thread, bitfield } = await loadThreadContext(threadId, user._id);
         const message = await messageService.createThreadMessage(thread, user, bitfield, {
           content,
+          attachments,
         });
         return { message };
       }
@@ -122,6 +142,7 @@ const registerHandlers = (io, socket) => {
       const { channel, bitfield } = await loadChannelContext(channelId, user._id);
       const message = await messageService.createChannelMessage(channel, user, bitfield, {
         content,
+        attachments,
       });
       return { message };
     })
@@ -150,9 +171,9 @@ const registerHandlers = (io, socket) => {
   socket.on(
     "dm:send",
     safe(async (payload) => {
-      const { dmId, content } = dmSendSchema.parse(payload);
+      const { dmId, content, attachments } = dmSendSchema.parse(payload);
       const dm = await dmService.getDmForUser(dmId, user._id);
-      const message = await dmService.sendMessage(dm, user, { content });
+      const message = await dmService.sendMessage(dm, user, { content, attachments });
       return { message };
     })
   );

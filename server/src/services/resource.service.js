@@ -1,6 +1,7 @@
 import { cloudinary } from "../config/cloudinary.js";
 import ApiError from "../utils/ApiError.js";
 import logger from "../utils/logger.js";
+import { uploadBuffer, slugify } from "../utils/cloudinaryUpload.js";
 import { hasPermission, PERMISSIONS } from "../constants/permissions.js";
 import { resolveMemberPermissions } from "../middleware/serverAuth.js";
 import { extensionOf } from "../middleware/uploadResource.js";
@@ -20,22 +21,6 @@ const KIND_BY_EXTENSION = Object.freeze({
   ".jpeg": RESOURCE_KINDS.IMAGE,
   ".webp": RESOURCE_KINDS.IMAGE,
 });
-
-/** Streams an in-memory buffer to Cloudinary. */
-const uploadBuffer = (buffer, options) =>
-  new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(options, (err, result) =>
-      err ? reject(err) : resolve(result)
-    );
-    stream.end(buffer);
-  });
-
-const slugify = (name) =>
-  name
-    .replace(/\.[^.]*$/, "")
-    .replace(/[^A-Za-z0-9_-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 60) || "resource";
 
 export const uploadResource = async (server, uploader, file, { title, description, tags }) => {
   const extension = extensionOf(file.originalname);
