@@ -53,6 +53,11 @@ const channelSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    unreadCounts: {
+      type: Map,
+      of: Number,
+      default: {},
+    },
   },
   { timestamps: true }
 );

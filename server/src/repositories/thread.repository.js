@@ -1,5 +1,15 @@
 import Thread from "../models/Thread.js";
 
+/** Flattens the per-user unreadCounts map to a single count for `userId`. */
+export const toThreadResponse = (thread, userId) => {
+  if (!thread) return thread;
+  const obj = thread.toObject({ flattenMaps: true });
+  const key = userId?.toString();
+  obj.unreadCount = key ? Number(obj.unreadCounts?.[key] || 0) : 0;
+  delete obj.unreadCounts;
+  return obj;
+};
+
 export const create = async (data, session) => {
   const [thread] = await Thread.create([data], { session });
   return thread;
@@ -37,5 +47,22 @@ export const removeParticipant = (id, userId) =>
   Thread.findByIdAndUpdate(
     id,
     { $pull: { participantIds: userId } },
+    { returnDocument: "after" }
+  );
+
+/** Bumps the unread count of every listed user by 1 in a single write. */
+export const incrementUnreadForUsers = (threadId, userIds) => {
+  if (!userIds.length) return Promise.resolve(null);
+  const inc = {};
+  userIds.forEach((id) => {
+    inc[`unreadCounts.${id.toString()}`] = 1;
+  });
+  return Thread.findByIdAndUpdate(threadId, { $inc: inc });
+};
+
+export const markReadForUser = (threadId, userId) =>
+  Thread.findByIdAndUpdate(
+    threadId,
+    { $set: { [`unreadCounts.${userId.toString()}`]: 0 } },
     { returnDocument: "after" }
   );

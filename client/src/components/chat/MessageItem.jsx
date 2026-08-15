@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MessageSquarePlus, Pencil, Pin, PinOff, SmilePlus, Trash2 } from "lucide-react";
+import { FileText, MessageSquarePlus, Pencil, Pin, PinOff, SmilePlus, Trash2 } from "lucide-react";
 import { Avatar } from "../ui/Avatar";
 import { CodeBlock } from "./CodeBlock";
-import { cn, displayNameOf, formatTime, parseContent, splitLinks } from "../../lib/utils";
+import { AttachmentImageLightbox } from "./AttachmentImageLightbox";
+import { cn, displayNameOf, formatBytes, formatTime, parseContent, splitLinks } from "../../lib/utils";
 
 const REACTION_PRESETS = ["👍", "❤️", "😂", "🔥", "🎉", "🤯"];
 
@@ -49,6 +50,40 @@ const MessageContent = ({ content }) => (
   </div>
 );
 
+const MessageAttachments = ({ attachments, onPreviewImage }) => (
+  <div className="mt-1.5 flex flex-wrap gap-2">
+    {attachments.map((att) =>
+      att.resourceType === "image" ? (
+        <button
+          key={att.publicId}
+          type="button"
+          onClick={() => onPreviewImage(att)}
+          className="block overflow-hidden rounded-xl border border-cream-300 transition hover:opacity-90"
+        >
+          <img src={att.url} alt={att.originalName} className="max-h-64 max-w-xs object-cover" />
+        </button>
+      ) : (
+        <a
+          key={att.publicId}
+          href={att.url}
+          target="_blank"
+          rel="noreferrer"
+          download={att.originalName}
+          className="flex max-w-xs items-center gap-2 rounded-xl border border-cream-300 bg-white px-3 py-2 transition hover:border-lav-300 hover:shadow-sm"
+        >
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-lav-100 text-lav-700">
+            <FileText size={16} />
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-xs font-semibold text-ink-900">{att.originalName}</span>
+            <span className="block text-[11px] text-ink-300">{formatBytes(att.sizeBytes)}</span>
+          </span>
+        </a>
+      )
+    )}
+  </div>
+);
+
 const ActionButton = ({ icon: Icon, label, danger, onClick }) => (
   <button
     onClick={onClick}
@@ -85,7 +120,9 @@ export const MessageItem = ({
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [previewImage, setPreviewImage] = useState(null);
   const author = typeof message.authorId === "object" ? message.authorId : null;
+  const attachments = Array.isArray(message.attachments) ? message.attachments : [];
 
   const startEdit = () => {
     setDraft(message.content);
@@ -166,11 +203,15 @@ export const MessageItem = ({
           </div>
         ) : (
           <div className="flex items-baseline gap-1.5">
-            <MessageContent content={message.content} />
+            {message.content && <MessageContent content={message.content} />}
             {message.editedAt && (
               <span className="shrink-0 text-[10px] text-ink-300">(edited)</span>
             )}
           </div>
+        )}
+
+        {!editing && attachments.length > 0 && (
+          <MessageAttachments attachments={attachments} onPreviewImage={setPreviewImage} />
         )}
 
         {!editing && reactions.length > 0 && (
@@ -241,6 +282,8 @@ export const MessageItem = ({
           )}
         </div>
       )}
+
+      <AttachmentImageLightbox attachment={previewImage} onClose={() => setPreviewImage(null)} />
     </div>
   );
 };

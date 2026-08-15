@@ -17,6 +17,7 @@ import { Menu } from "../ui/Menu";
 import { ChatPane } from "./ChatPane";
 import { useAuth } from "../../hooks/useAuth";
 import { useChat } from "../../hooks/useChat";
+import { useSocketEvent } from "../../hooks/useSocket";
 import { useToast } from "../../hooks/useToast";
 import { apiMessage } from "../../lib/api";
 import { cn, idOf, timeAgo } from "../../lib/utils";
@@ -31,6 +32,10 @@ const ThreadView = ({ thread, myPermissions, onBack, onThreadChanged, onDeleted 
   const { user } = useAuth();
   const { toast } = useToast();
   const chat = useChat("thread", thread._id);
+
+  useEffect(() => {
+    threadService.markThreadRead(thread._id).catch(() => {});
+  }, [thread._id, chat.messages.length]);
 
   const isCreator = idOf(thread.createdBy) === String(user?._id);
   // const canManageThreads = hasPermission(myPermissions, PERMISSIONS.MANAGE_THREADS);
@@ -134,20 +139,28 @@ const ThreadView = ({ thread, myPermissions, onBack, onThreadChanged, onDeleted 
 
 // ---------- thread list ----------
 
-const ThreadListItem = ({ thread, onOpen }) => (
-  <button
-    onClick={() => onOpen(thread)}
-    className="w-full rounded-xl border border-cream-300 bg-white p-3 text-left transition hover:border-lav-300 hover:shadow-sm"
-  >
-    <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-ink-900">
-      {thread.locked && <Lock size={12} className="shrink-0 text-ink-300" />}
-      {thread.name}
-    </p>
-    <p className="mt-0.5 text-[11px] text-ink-300">
-      {thread.participantIds?.length ?? 0} participant{(thread.participantIds?.length ?? 0) === 1 ? "" : "s"} · active {timeAgo(thread.lastActiveAt)}
-    </p>
-  </button>
-);
+const ThreadListItem = ({ thread, onOpen }) => {
+  const unread = Number(thread.unreadCount) || 0;
+  return (
+    <button
+      onClick={() => onOpen(thread)}
+      className="w-full rounded-xl border border-cream-300 bg-white p-3 text-left transition hover:border-lav-300 hover:shadow-sm"
+    >
+      <p className="flex items-center gap-1.5 text-sm font-semibold text-ink-900">
+        {thread.locked && <Lock size={12} className="shrink-0 text-ink-300" />}
+        <span className="min-w-0 flex-1 truncate">{thread.name}</span>
+        {unread > 0 && (
+          <span className="shrink-0 rounded-full bg-lav-600 px-1.5 py-0.5 text-center text-[10px] font-bold leading-none text-white">
+            {unread > 99 ? "99+" : unread}
+          </span>
+        )}
+      </p>
+      <p className="mt-0.5 text-[11px] text-ink-300">
+        {thread.participantIds?.length ?? 0} participant{(thread.participantIds?.length ?? 0) === 1 ? "" : "s"} · active {timeAgo(thread.lastActiveAt)}
+      </p>
+    </button>
+  );
+};
 
 /**
  * Right-hand threads panel for a channel: browse active/archived threads,
@@ -165,6 +178,44 @@ export const ThreadPanel = ({ channel, myPermissions, startFromMessage, onClose 
     channel.type === "announcement"
       ? hasPermission(myPermissions, PERMISSIONS.MANAGE_THREADS)
       : hasPermission(myPermissions, PERMISSIONS.SEND_MESSAGES);
+
+  useSocketEvent(
+    "thread:unread",
+    ({ threadId, channelId, delta }) => {
+      if (idOf(channelId) !== idOf(channel._id)) return;
+      const id = String(threadId || "");
+      if (!id || (openThread && idOf(openThread._id) === id)) return;
+      setThreads((prev) =>
+        prev
+          ? prev.map((t) =>
+              t._id === id
+                ? { ...t, unreadCount: Math.max(0, Number(t.unreadCount || 0) + Number(delta || 1)) }
+                : t
+            )
+          : prev
+      );
+    },
+    [channel._id, openThread]
+  );
+
+  useSocketEvent(
+    "thread:read",
+    ({ threadId, unreadCount }) => {
+      const id = String(threadId || "");
+      if (!id) return;
+      setThreads((prev) =>
+        prev ? prev.map((t) => (t._id === id ? { ...t, unreadCount: Number(unreadCount || 0) } : t)) : prev
+      );
+    },
+    []
+  );
+
+  const openThreadAndMarkRead = useCallback((thread) => {
+    setOpenThread(thread);
+    setThreads((prev) =>
+      prev ? prev.map((t) => (t._id === thread._id ? { ...t, unreadCount: 0 } : t)) : prev
+    );
+  }, []);
 
   const refresh = useCallback(() => {
     listChannelThreads(channel._id, { archived: showArchived })
@@ -310,7 +361,7 @@ export const ThreadPanel = ({ channel, myPermissions, startFromMessage, onClose 
               {showArchived ? "No archived threads." : "No active threads — start one from a message or with +."}
             </p>
           ) : (
-            threads.map((t) => <ThreadListItem key={t._id} thread={t} onOpen={setOpenThread} />)
+            threads.map((t) => <ThreadListItem key={t._id} thread={t} onOpen={openThreadAndMarkRead} />)
           )}
         </div>
       </div>

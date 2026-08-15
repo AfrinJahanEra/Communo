@@ -9,6 +9,7 @@ import messageRoutes from "./message.routes.js";
 import friendRoutes from "./friend.routes.js";
 import dmRoutes from "./dm.routes.js";
 import aiRoutes from "./ai.routes.js";
+import attachmentRoutes from "./attachment.routes.js";
 
 const router = Router();
 
@@ -26,5 +27,6 @@ router.use("/messages", messageRoutes);
 router.use("/friends", friendRoutes);
 router.use("/dms", dmRoutes);
 router.use("/ai", aiRoutes);
+router.use("/attachments", attachmentRoutes);
 
 export default router;

@@ -23,6 +23,7 @@ import {
   updateChannel,
   deleteChannel,
   getVoiceParticipants,
+  markChannelRead,
 } from "../controllers/channel.controller.js";
 import { createThread, listThreads } from "../controllers/thread.controller.js";
 import {
@@ -77,6 +78,7 @@ router.post(
   createChannelMessage
 );
 router.get("/:channelId/pins", listChannelPins);
+router.post("/:channelId/read", markChannelRead);
 
 // Live voice roster (Phase 6)
 router.get("/:channelId/voice", getVoiceParticipants);

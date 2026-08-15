@@ -20,6 +20,7 @@ import {
   joinThread,
   leaveThread,
   deleteThread,
+  markThreadRead,
 } from "../controllers/thread.controller.js";
 import {
   createThreadMessage,
@@ -60,5 +61,6 @@ router.post(
   createThreadMessage
 );
 router.get("/:threadId/pins", listThreadPins);
+router.post("/:threadId/read", markThreadRead);
 
 export default router;

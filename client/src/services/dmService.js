@@ -15,8 +15,8 @@ export const listDmMessages = async (dmId, params = {}) => {
   return data; // { messages, nextCursor }
 };
 
-export const sendDmMessage = async (dmId, content) => {
-  const { data } = await api.post(`/dms/${dmId}/messages`, { content });
+export const sendDmMessage = async (dmId, content, attachments = []) => {
+  const { data } = await api.post(`/dms/${dmId}/messages`, { content, attachments });
   return data.message;
 };
 

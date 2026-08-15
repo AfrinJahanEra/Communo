@@ -2,6 +2,7 @@ import asyncHandler from "../utils/asyncHandler.js";
 import ApiError from "../utils/ApiError.js";
 import { sendOk, sendCreated } from "../utils/response.js";
 import * as channelService from "../services/channel.service.js";
+import * as channelRepository from "../repositories/channel.repository.js";
 import { CHANNEL_TYPES } from "../constants/channels.js";
 import * as voiceState from "../sockets/voiceState.js";
 
@@ -11,7 +12,7 @@ export const createChannel = asyncHandler(async (req, res) => {
 });
 
 export const listChannels = asyncHandler(async (req, res) => {
-  const channels = await channelService.listChannels(req.server, req.membership);
+  const channels = await channelService.listChannels(req.server, req.membership, req.user._id);
   return sendOk(res, "Channels fetched", { channels });
 });
 
@@ -21,7 +22,13 @@ export const reorderChannels = asyncHandler(async (req, res) => {
 });
 
 export const getChannel = asyncHandler(async (req, res) => {
-  return sendOk(res, "Channel fetched", { channel: req.channel });
+  const channel = channelRepository.toChannelResponse(req.channel, req.user._id);
+  return sendOk(res, "Channel fetched", { channel });
+});
+
+export const markChannelRead = asyncHandler(async (req, res) => {
+  const channel = await channelService.markChannelRead(req.channel, req.user._id);
+  return sendOk(res, "Channel marked as read", { channel });
 });
 
 export const updateChannel = asyncHandler(async (req, res) => {

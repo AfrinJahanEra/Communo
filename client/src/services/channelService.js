@@ -49,14 +49,19 @@ export const listChannelMessages = async (channelId, params = {}) => {
   return data; // { messages, nextCursor }
 };
 
-export const sendChannelMessage = async (channelId, content) => {
-  const { data } = await api.post(`/channels/${channelId}/messages`, { content });
+export const sendChannelMessage = async (channelId, content, attachments = []) => {
+  const { data } = await api.post(`/channels/${channelId}/messages`, { content, attachments });
   return data.message;
 };
 
 export const listChannelPins = async (channelId) => {
   const { data } = await api.get(`/channels/${channelId}/pins`);
   return data.messages;
+};
+
+export const markChannelRead = async (channelId) => {
+  const { data } = await api.post(`/channels/${channelId}/read`);
+  return data.channel;
 };
 
 export const getVoiceParticipants = async (channelId) => {

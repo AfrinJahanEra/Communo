@@ -54,3 +54,8 @@ export const listThreadPins = async (threadId) => {
   const { data } = await api.get(`/threads/${threadId}/pins`);
   return data.messages;
 };
+
+export const markThreadRead = async (threadId) => {
+  const { data } = await api.post(`/threads/${threadId}/read`);
+  return data.thread;
+};

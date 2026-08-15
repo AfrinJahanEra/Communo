@@ -38,8 +38,8 @@ const SCOPES = {
     leaveEvent: "channel:leave",
     joinPayload: (id) => ({ channelId: id }),
     sendEvent: "message:send",
-    sendPayload: (id, content) => ({ channelId: id, content }),
-    restSend: (id, content) => sendChannelMessage(id, content),
+    sendPayload: (id, content, attachments) => ({ channelId: id, content, attachments }),
+    restSend: (id, content, attachments) => sendChannelMessage(id, content, attachments),
     newEvent: "message:new",
     updatedEvent: "message:updated",
     deletedEvent: "message:deleted",
@@ -60,9 +60,9 @@ const SCOPES = {
     leaveEvent: "thread:leave",
     joinPayload: (id) => ({ threadId: id }),
     sendEvent: "message:send",
-    sendPayload: (id, content) => ({ threadId: id, content }),
-    restSend: async (id, content) => {
-      const { data } = await api.post(`/threads/${id}/messages`, { content });
+    sendPayload: (id, content, attachments) => ({ threadId: id, content, attachments }),
+    restSend: async (id, content, attachments) => {
+      const { data } = await api.post(`/threads/${id}/messages`, { content, attachments });
       return data.message;
     },
     newEvent: "message:new",
@@ -83,8 +83,8 @@ const SCOPES = {
     fetch: (id, params) => listDmMessages(id, params),
     joinEvent: null, // DM events arrive via the personal user room
     sendEvent: "dm:send",
-    sendPayload: (id, content) => ({ dmId: id, content }),
-    restSend: (id, content) => sendDmMessage(id, content),
+    sendPayload: (id, content, attachments) => ({ dmId: id, content, attachments }),
+    restSend: (id, content, attachments) => sendDmMessage(id, content, attachments),
     newEvent: "dm:new",
     updatedEvent: "dm:updated",
     deletedEvent: "dm:deleted",
@@ -271,15 +271,15 @@ export const useChat = (kind, id) => {
 
   /** Socket first (instant broadcast), REST fallback when the socket is down. */
   const send = useCallback(
-    async (content) => {
-      const [event, payload] = [cfg.sendEvent, cfg.sendPayload(id, content)];
+    async (content, attachments = []) => {
+      const [event, payload] = [cfg.sendEvent, cfg.sendPayload(id, content, attachments)];
       const ack = await emitAck(event, payload);
       if (ack.success) {
         if (ack.message && typeof ack.message === "object") upsert(ack.message);
         return;
       }
       if (ack.message === "Not connected" || ack.message === "Request timed out") {
-        const message = await cfg.restSend(id, content);
+        const message = await cfg.restSend(id, content, attachments);
         upsert(message);
         return;
       }

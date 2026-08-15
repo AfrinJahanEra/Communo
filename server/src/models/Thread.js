@@ -50,6 +50,11 @@ const threadSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    unreadCounts: {
+      type: Map,
+      of: Number,
+      default: {},
+    },
   },
   { timestamps: true }
 );

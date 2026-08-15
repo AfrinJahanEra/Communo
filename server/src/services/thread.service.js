@@ -4,6 +4,7 @@ import { CHANNEL_TYPES } from "../constants/channels.js";
 import { PERMISSIONS, hasPermission } from "../constants/permissions.js";
 import * as threadRepository from "../repositories/thread.repository.js";
 import * as messageRepository from "../repositories/message.repository.js";
+import { emitToUsers } from "../sockets/emitters.js";
 
 const MAX_ACTIVE_THREADS_PER_CHANNEL = 50;
 
@@ -43,8 +44,21 @@ export const createThread = async (channel, createdBy, bitfield, data) => {
 };
 
 /** Active threads by default; pass archived=true for the archive list. */
-export const listThreads = (channel, { archived = false } = {}) =>
-  threadRepository.findByChannel(channel._id, { archived });
+export const listThreads = async (channel, { archived = false } = {}, userId) => {
+  const threads = await threadRepository.findByChannel(channel._id, { archived });
+  return threads.map((thread) => threadRepository.toThreadResponse(thread, userId));
+};
+
+/** Zeroes the caller's unread count for this thread. */
+export const markThreadRead = async (thread, userId) => {
+  const updated = await threadRepository.markReadForUser(thread._id, userId);
+  const response = threadRepository.toThreadResponse(updated, userId);
+  emitToUsers([userId], "thread:read", {
+    threadId: thread._id,
+    unreadCount: response.unreadCount,
+  });
+  return response;
+};
 
 /** Rename: creator or MANAGE_THREADS; locked threads need MANAGE_THREADS. */
 export const updateThread = async (thread, userId, bitfield, update) => {

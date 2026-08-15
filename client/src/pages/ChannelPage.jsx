@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useOutletContext, useParams } from "react-router-dom";
 import { Hash, Megaphone, MessagesSquare, Pin, Volume2 } from "lucide-react";
 import { ChatHeader, HeaderButton } from "../components/chat/ChatHeader";
@@ -10,7 +10,7 @@ import { VoiceRoom } from "../components/voice/VoiceRoom";
 import { EmptyState } from "../components/ui/EmptyState";
 import { useChat } from "../hooks/useChat";
 import { hasPermission, PERMISSIONS } from "../lib/permissions";
-import { listChannelPins } from "../services/channelService";
+import { listChannelPins, markChannelRead } from "../services/channelService";
 
 const CHANNEL_ICONS = { text: Hash, announcement: Megaphone, voice: Volume2 };
 
@@ -29,6 +29,12 @@ const ChannelPage = () => {
   const [threadStart, setThreadStart] = useState(null);
 
   const chat = useChat("channel", channel && channel.type !== "voice" ? channelId : null);
+
+  useEffect(() => {
+    if (!channel || channel.type === "voice") return undefined;
+    markChannelRead(channel._id).catch(() => {});
+    return undefined;
+  }, [channel, chat.messages.length]);
 
   const fetchPins = useCallback(() => listChannelPins(channelId), [channelId]);
 

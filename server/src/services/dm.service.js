@@ -1,8 +1,19 @@
+import { cloudinary } from "../config/cloudinary.js";
 import ApiError from "../utils/ApiError.js";
+import logger from "../utils/logger.js";
 import * as dmRepository from "../repositories/dm.repository.js";
 import * as friendRepository from "../repositories/friend.repository.js";
 import * as userRepository from "../repositories/user.repository.js";
 import { emitToUsers } from "../sockets/emitters.js";
+
+/** Best-effort Cloudinary cleanup; the DB record stays the source of truth. */
+const cleanupAttachments = (attachments = []) => {
+  attachments.forEach((att) => {
+    cloudinary.uploader
+      .destroy(att.publicId, { resource_type: att.resourceType })
+      .catch((err) => logger.warn(`Cloudinary cleanup failed for ${att.publicId}: ${err.message}`));
+  });
+};
 
 /** participantIds come back populated — normalize to plain id strings. */
 const participantIds = (dm) =>
@@ -47,7 +58,7 @@ export const getDmForUser = async (dmId, userId) => {
   return dm;
 };
 
-export const sendMessage = async (dm, author, { content }) => {
+export const sendMessage = async (dm, author, { content, attachments }) => {
   const otherId = otherParticipantId(dm, author._id);
   // Blocks cut off existing conversations too, not just new ones
   if (await friendRepository.findBlockBetween(author._id, otherId)) {
@@ -57,6 +68,7 @@ export const sendMessage = async (dm, author, { content }) => {
     dmId: dm._id,
     authorId: author._id,
     content,
+    attachments,
   });
   await dmRepository.touchChannel(dm._id);
   await dmRepository.incrementUnreadCount(dm._id, otherId);
@@ -145,6 +157,7 @@ export const deleteMessage = async (dm, user, message) => {
     throw ApiError.forbidden("You can only delete your own messages");
   }
   await dmRepository.deleteMessageById(message._id);
+  cleanupAttachments(message.attachments);
   emitToUsers(participantIds(dm), "dm:deleted", {
     messageId: message._id,
     dmId: dm._id,

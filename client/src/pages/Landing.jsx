@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Logo } from "../components/Logo";
 import DotField from "../components/landing/DotField";
+import { FeatureMarquee } from "../components/landing/FeatureMarquee";
 
 const FEATURES = [
   {
@@ -46,13 +47,18 @@ const FEATURES = [
 ];
 
 const Landing = () => (
-  <div className="relative min-h-full overflow-hidden">
+  // pointer-events-none here too: this box spans the whole page (including
+  // the margins outside the centered header/hero/feature sections), so it
+  // would otherwise swallow clicks meant for the dot field beneath it.
+  <div className="pointer-events-none relative min-h-full overflow-hidden">
     <DotField />
 
     {/* Nav */}
-    <header className="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+    {/* pointer-events-none lets clicks fall through the empty parts of this
+        section to the dot field behind it; re-enabled on the actual controls. */}
+    <header className="pointer-events-none relative mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
       <Logo />
-      <nav className="flex items-center gap-2">
+      <nav className="pointer-events-auto flex items-center gap-2">
         <Link to="/login" className="btn-ghost">
           Log in
         </Link>
@@ -63,7 +69,7 @@ const Landing = () => (
     </header>
 
     {/* Hero */}
-    <section className="relative z-10 mx-auto max-w-4xl px-6 pb-16 pt-14 text-center sm:pt-20">
+    <section className="pointer-events-none relative mx-auto max-w-4xl px-6 pb-16 pt-14 text-center sm:pt-20">
       <span className="inline-flex items-center gap-1.5 rounded-full border border-lav-300 bg-lav-50 px-3 py-1 text-xs font-semibold text-lav-700">
         <Zap size={13} /> Built for CSE students
       </span>
@@ -75,7 +81,7 @@ const Landing = () => (
         CodeCord brings servers, channels, threads, voice study rooms and code sharing into
         one calm, distraction-free space — so your study group never misses a beat.
       </p>
-      <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+      <div className="pointer-events-auto mt-8 flex flex-wrap items-center justify-center gap-3">
         <Link to="/register" className="btn-primary px-6 py-3 text-base">
           Create your account <ArrowRight size={17} />
         </Link>
@@ -85,25 +91,12 @@ const Landing = () => (
       </div>
     </section>
 
-    {/* Feature grid */}
-    <section className="relative z-10 mx-auto max-w-6xl px-6 pb-20">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {FEATURES.map(({ icon: Icon, title, body }) => (
-          <div
-            key={title}
-            className="card bg-cream-50/85 p-6 backdrop-blur-sm transition hover:-translate-y-0.5 hover:shadow-md"
-          >
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-lav-100 text-lav-600">
-              <Icon size={22} />
-            </span>
-            <h3 className="mt-4 text-base font-bold text-ink-900">{title}</h3>
-            <p className="mt-1.5 text-sm leading-relaxed text-ink-500">{body}</p>
-          </div>
-        ))}
-      </div>
+    {/* Feature marquee */}
+    <section className="pointer-events-none relative mx-auto max-w-6xl px-6 pb-20">
+      <FeatureMarquee features={FEATURES} />
     </section>
 
-    <footer className="relative z-10 border-t border-cream-300 py-8 text-center text-xs text-ink-300">
+    <footer className="pointer-events-none relative border-t border-cream-300 py-8 text-center text-xs text-ink-300">
       CodeCord — a collaborative communication platform for CSE students.
     </footer>
   </div>
