@@ -82,3 +82,13 @@ export const toggleMessageReaction = asyncHandler(async (req, res) => {
   const message = await messageService.toggleReaction(req.message, req.user._id, req.body);
   return sendOk(res, "Message reaction updated", { message });
 });
+
+export const voteOnPoll = asyncHandler(async (req, res) => {
+  const message = await messageService.voteOnPoll(req.message, req.user._id, req.body);
+  return sendOk(res, "Vote recorded", { message });
+});
+
+export const editPoll = asyncHandler(async (req, res) => {
+  const message = await messageService.editPoll(req.message, req.body);
+  return sendOk(res, "Poll updated", { message });
+});

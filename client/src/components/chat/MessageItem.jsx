@@ -4,6 +4,7 @@ import { FileText, MessageSquarePlus, Pencil, Pin, PinOff, SmilePlus, Trash2 } f
 import { Avatar } from "../ui/Avatar";
 import { CodeBlock } from "./CodeBlock";
 import { AttachmentImageLightbox } from "./AttachmentImageLightbox";
+import { PollBlock } from "./PollBlock";
 import { cn, displayNameOf, formatBytes, formatTime, parseContent, splitLinks } from "../../lib/utils";
 
 const REACTION_PRESETS = ["👍", "❤️", "😂", "🔥", "🎉", "🤯"];
@@ -115,6 +116,9 @@ export const MessageItem = ({
   onTogglePin,
   onToggleReaction,
   onStartThread,
+  onVotePoll,
+  onOpenPollVoters,
+  onEditPoll,
 }) => {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -123,6 +127,8 @@ export const MessageItem = ({
   const [previewImage, setPreviewImage] = useState(null);
   const author = typeof message.authorId === "object" ? message.authorId : null;
   const attachments = Array.isArray(message.attachments) ? message.attachments : [];
+  // Polls are the one message type anyone can create/edit/delete, not just the author.
+  const isPoll = Boolean(message.poll);
 
   const startEdit = () => {
     setDraft(message.content);
@@ -210,6 +216,15 @@ export const MessageItem = ({
           </div>
         )}
 
+        {!editing && isPoll && (
+          <PollBlock
+            message={message}
+            viewerId={viewerId}
+            onVote={onVotePoll}
+            onOpenVoters={onOpenPollVoters}
+          />
+        )}
+
         {!editing && attachments.length > 0 && (
           <MessageAttachments attachments={attachments} onPreviewImage={setPreviewImage} />
         )}
@@ -276,8 +291,14 @@ export const MessageItem = ({
               </div>
             )}
           </div>
-          {isMine && <ActionButton icon={Pencil} label="Edit" onClick={startEdit} />}
-          {(isMine || canManage) && (
+          {(isPoll || isMine) && (
+            <ActionButton
+              icon={Pencil}
+              label="Edit"
+              onClick={() => (isPoll ? onEditPoll(message) : startEdit())}
+            />
+          )}
+          {(isPoll || isMine || canManage) && (
             <ActionButton icon={Trash2} label="Delete" danger onClick={() => onDelete(message)} />
           )}
         </div>

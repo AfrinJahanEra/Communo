@@ -49,8 +49,12 @@ export const listChannelMessages = async (channelId, params = {}) => {
   return data; // { messages, nextCursor }
 };
 
-export const sendChannelMessage = async (channelId, content, attachments = []) => {
-  const { data } = await api.post(`/channels/${channelId}/messages`, { content, attachments });
+export const sendChannelMessage = async (channelId, content, attachments = [], poll = null) => {
+  const { data } = await api.post(`/channels/${channelId}/messages`, {
+    content,
+    attachments,
+    ...(poll ? { poll } : {}),
+  });
   return data.message;
 };
 

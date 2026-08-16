@@ -67,7 +67,16 @@ const recipientsExcluding = async (serverId, authorId) => {
     .filter((id) => id !== authorId.toString());
 };
 
-export const createChannelMessage = async (channel, author, bitfield, { content, attachments }) => {
+/** { question, options: string[] } -> the embedded poll subdocument shape. */
+const toPollDoc = (poll) =>
+  poll
+    ? {
+        question: poll.question,
+        options: poll.options.map((text) => ({ text, voterIds: [] })),
+      }
+    : undefined;
+
+export const createChannelMessage = async (channel, author, bitfield, { content, attachments, poll }) => {
   if (channel.type === CHANNEL_TYPES.VOICE) {
     throw ApiError.badRequest("Voice channels do not support text messages");
   }
@@ -83,6 +92,7 @@ export const createChannelMessage = async (channel, author, bitfield, { content,
     authorId: author._id,
     content,
     attachments,
+    poll: toPollDoc(poll),
   });
   emitToRoom(messageRoom(message), "message:new", { message });
   const recipients = await recipientsExcluding(channel.serverId, author._id);
@@ -170,9 +180,13 @@ export const updateMessage = async (message, userId, { content }) => {
   return updated;
 };
 
-/** Author may delete their own message; MANAGE_MESSAGES may delete any. */
+/**
+ * Author may delete their own message; MANAGE_MESSAGES may delete any.
+ * Polls are the one exception: any channel member has full access to them.
+ */
 export const deleteMessage = async (message, userId, bitfield) => {
-  if (!isAuthor(message, userId) && !hasPermission(bitfield, PERMISSIONS.MANAGE_MESSAGES)) {
+  const pollOverride = Boolean(message.poll);
+  if (!pollOverride && !isAuthor(message, userId) && !hasPermission(bitfield, PERMISSIONS.MANAGE_MESSAGES)) {
     throw ApiError.forbidden("You do not have permission to delete this message");
   }
   await messageRepository.deleteById(message._id);
@@ -210,6 +224,58 @@ export const listThreadPins = (thread) =>
 export const toggleReaction = async (message, userId, { emoji }) => {
   const reactions = applyReactionToggle(message, userId, emoji);
   const updated = await messageRepository.updateById(message._id, { reactions });
+  emitToRoom(messageRoom(updated), "message:updated", { message: updated });
+  return updated;
+};
+
+// ---------- polls ----------
+// Single-choice: voting for an option clears any previous vote by the same
+// user first, so "vote" and "change vote" are the same operation.
+
+const applyPollVote = (poll, userId, optionId) => {
+  const key = userId.toString();
+  const targetId = optionId.toString();
+  const options = (poll.options || []).map((option) => ({
+    _id: option._id,
+    text: option.text,
+    voterIds: (option.voterIds || []).map((id) => id.toString()),
+  }));
+  const target = options.find((option) => option._id.toString() === targetId);
+  if (!target) throw ApiError.badRequest("Invalid poll option");
+
+  options.forEach((option) => {
+    option.voterIds = option.voterIds.filter((id) => id !== key);
+  });
+  target.voterIds.push(key);
+
+  return { question: poll.question, options };
+};
+
+export const voteOnPoll = async (message, userId, { optionId }) => {
+  if (!message.poll) throw ApiError.badRequest("This message is not a poll");
+  const poll = applyPollVote(message.poll, userId, optionId);
+  const updated = await messageRepository.updateById(message._id, { poll });
+  emitToRoom(messageRoom(updated), "message:updated", { message: updated });
+  return updated;
+};
+
+/** Anyone can edit a poll's question/options; matching option text keeps its votes. */
+export const editPoll = async (message, { question, options }) => {
+  if (!message.poll) throw ApiError.badRequest("This message is not a poll");
+  const existingVotesByText = new Map(
+    (message.poll.options || []).map((option) => [
+      option.text,
+      (option.voterIds || []).map((id) => id.toString()),
+    ])
+  );
+  const nextOptions = options.map((text) => ({
+    text,
+    voterIds: existingVotesByText.get(text) || [],
+  }));
+  const updated = await messageRepository.updateById(message._id, {
+    poll: { question, options: nextOptions },
+    editedAt: new Date(),
+  });
   emitToRoom(messageRoom(updated), "message:updated", { message: updated });
   return updated;
 };
