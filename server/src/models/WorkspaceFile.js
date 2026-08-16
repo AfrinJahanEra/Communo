@@ -5,8 +5,11 @@ import { LANGUAGE_KEYS } from "../constants/languages.js";
 export const MAX_FILE_CONTENT = 200 * 1024; // 200KB of source text
 
 /**
- * A file inside a server's collaborative workspace. `path` encodes the
- * folder structure ("src/utils/math.py"); folders are derived client-side.
+ * A file (or folder marker) inside a server's collaborative workspace.
+ * `path` encodes the folder structure ("src/utils/math.py"); most folders
+ * are still just derived client-side from file paths, but an explicitly
+ * created (possibly empty) folder is persisted here too with `type: "folder"`
+ * so it survives reloads and can be renamed/deleted like a file.
  * `version` increments on every accepted edit batch and is the backbone of
  * the sync protocol (stale baseVersion -> full resync).
  */
@@ -27,6 +30,11 @@ const workspaceFileSchema = new mongoose.Schema(
       required: [true, "File path is required"],
       trim: true,
       maxlength: [200, "File path cannot exceed 200 characters"],
+    },
+    type: {
+      type: String,
+      enum: ["file", "folder"],
+      default: "file",
     },
     language: {
       type: String,

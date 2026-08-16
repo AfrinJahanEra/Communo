@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  NavLink,
   Outlet,
   useLocation,
   useNavigate,
@@ -24,6 +23,7 @@ import {
 import { SidebarShell } from "../components/layout/SidebarShell";
 import { UserFooter } from "../components/layout/UserFooter";
 import { Menu } from "../components/ui/Menu";
+import { NavButton } from "../components/ui/NavButton";
 import { LoadingScreen } from "../components/ui/Spinner";
 import { EmptyState } from "../components/ui/EmptyState";
 import { Button } from "../components/ui/Button";
@@ -49,12 +49,12 @@ const WORKSPACE_LINKS = [
 ];
 
 const WorkspaceLink = ({ serverId, link, onNavigate }) => (
-  <NavLink
+  <NavButton
     to={`/app/servers/${serverId}/${link.path}`}
     onClick={onNavigate}
     className={({ isActive }) =>
       cn(
-        "group flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm transition",
+        "group flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition",
         isActive
           ? "bg-lav-100 font-semibold text-lav-800"
           : "text-ink-500 hover:bg-cream-300/70 hover:text-ink-900"
@@ -63,19 +63,19 @@ const WorkspaceLink = ({ serverId, link, onNavigate }) => (
   >
     <link.icon size={15} className="shrink-0 opacity-70" />
     <span className="truncate">{link.label}</span>
-  </NavLink>
+  </NavButton>
 );
 
 const ChannelLink = ({ serverId, channel, onNavigate }) => {
   const Icon = CHANNEL_ICONS[channel.type] || Hash;
   const unread = Number(channel.unreadCount) || 0;
   return (
-    <NavLink
+    <NavButton
       to={`/app/servers/${serverId}/channels/${channel._id}`}
       onClick={onNavigate}
       className={({ isActive }) =>
         cn(
-          "group flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm transition",
+          "group flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm transition",
           isActive
             ? "bg-lav-100 font-semibold text-lav-800"
             : "text-ink-500 hover:bg-cream-300/70 hover:text-ink-900"
@@ -92,7 +92,7 @@ const ChannelLink = ({ serverId, channel, onNavigate }) => {
         )}
         {channel.isPrivate && <Lock size={11} className="shrink-0 opacity-50" />}
       </span>
-    </NavLink>
+    </NavButton>
   );
 };
 

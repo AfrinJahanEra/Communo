@@ -20,6 +20,8 @@ import {
   pinMessage,
   unpinMessage,
   toggleMessageReaction,
+  votePoll,
+  editPoll,
 } from "../services/messageService";
 import api from "../lib/api";
 import { useSocketEvent } from "./useSocket";
@@ -38,8 +40,13 @@ const SCOPES = {
     leaveEvent: "channel:leave",
     joinPayload: (id) => ({ channelId: id }),
     sendEvent: "message:send",
-    sendPayload: (id, content, attachments) => ({ channelId: id, content, attachments }),
-    restSend: (id, content, attachments) => sendChannelMessage(id, content, attachments),
+    sendPayload: (id, content, attachments, poll) => ({
+      channelId: id,
+      content,
+      attachments,
+      ...(poll ? { poll } : {}),
+    }),
+    restSend: (id, content, attachments, poll) => sendChannelMessage(id, content, attachments, poll),
     newEvent: "message:new",
     updatedEvent: "message:updated",
     deletedEvent: "message:deleted",
@@ -271,15 +278,15 @@ export const useChat = (kind, id) => {
 
   /** Socket first (instant broadcast), REST fallback when the socket is down. */
   const send = useCallback(
-    async (content, attachments = []) => {
-      const [event, payload] = [cfg.sendEvent, cfg.sendPayload(id, content, attachments)];
+    async (content, attachments = [], poll = null) => {
+      const [event, payload] = [cfg.sendEvent, cfg.sendPayload(id, content, attachments, poll)];
       const ack = await emitAck(event, payload);
       if (ack.success) {
         if (ack.message && typeof ack.message === "object") upsert(ack.message);
         return;
       }
       if (ack.message === "Not connected" || ack.message === "Request timed out") {
-        const message = await cfg.restSend(id, content, attachments);
+        const message = await cfg.restSend(id, content, attachments, poll);
         upsert(message);
         return;
       }
@@ -323,6 +330,26 @@ export const useChat = (kind, id) => {
     [upsert] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
+  // Polls are channel-only, so these call the message service directly
+  // rather than routing through the per-scope cfg table.
+  const votePollAction = useCallback(
+    async (messageId, optionId) => {
+      const updated = await votePoll(messageId, optionId);
+      upsert(updated);
+      return updated;
+    },
+    [upsert]
+  );
+
+  const editPollAction = useCallback(
+    async (messageId, pollPayload) => {
+      const updated = await editPoll(messageId, pollPayload);
+      upsert(updated);
+      return updated;
+    },
+    [upsert]
+  );
+
   /** Debounced typing broadcast — call on every keystroke. */
   const typingActive = useRef(false);
   const typingStopTimer = useRef(null);
@@ -363,6 +390,8 @@ export const useChat = (kind, id) => {
     remove,
     togglePin,
     toggleReaction,
+    votePoll: votePollAction,
+    editPoll: editPollAction,
     canPin: Boolean(cfg.pin),
     notifyTyping,
     stopTyping,

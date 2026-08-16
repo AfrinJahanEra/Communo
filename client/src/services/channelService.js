@@ -49,8 +49,12 @@ export const listChannelMessages = async (channelId, params = {}) => {
   return data; // { messages, nextCursor }
 };
 
-export const sendChannelMessage = async (channelId, content, attachments = []) => {
-  const { data } = await api.post(`/channels/${channelId}/messages`, { content, attachments });
+export const sendChannelMessage = async (channelId, content, attachments = [], poll = null) => {
+  const { data } = await api.post(`/channels/${channelId}/messages`, {
+    content,
+    attachments,
+    ...(poll ? { poll } : {}),
+  });
   return data.message;
 };
 
@@ -67,4 +71,10 @@ export const markChannelRead = async (channelId) => {
 export const getVoiceParticipants = async (channelId) => {
   const { data } = await api.get(`/channels/${channelId}/voice`);
   return data.participants;
+};
+
+/** { overview, keyPoints?, decisions?, actionItems?, unresolved?, messageCount } */
+export const summarizeChannel = async (channelId) => {
+  const { data } = await api.post(`/channels/${channelId}/summarize`);
+  return data.summary;
 };

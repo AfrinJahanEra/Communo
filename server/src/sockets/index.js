@@ -13,7 +13,7 @@ import * as dmService from "../services/dm.service.js";
 import { setIO } from "./io.js";
 import { channelRoom, threadRoom, userRoom, serverRoom } from "./emitters.js";
 import { objectId } from "../validations/server.validation.js";
-import { attachmentSchema } from "../validations/message.validation.js";
+import { attachmentSchema, pollSchema } from "../validations/message.validation.js";
 import { safe } from "./ack.js";
 import { registerVoiceHandlers } from "./voice.js";
 import { registerWorkspaceHandlers } from "./workspace.js";
@@ -29,7 +29,7 @@ const messageBody = {
   attachments: z.array(attachmentSchema).max(10).default([]),
 };
 const requireContentOrAttachments = (data, ctx) => {
-  if (data.content.length === 0 && data.attachments.length === 0) {
+  if (data.content.length === 0 && data.attachments.length === 0 && !data.poll) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "Message must include text or at least one attachment",
@@ -37,10 +37,12 @@ const requireContentOrAttachments = (data, ctx) => {
     });
   }
 };
+// Polls are channel-only, so only sendSchema (not dmSendSchema) gets the field.
 const sendSchema = z
   .object({
     channelId: objectId("channel id").optional(),
     threadId: objectId("thread id").optional(),
+    poll: pollSchema.optional(),
     ...messageBody,
   })
   .superRefine(requireContentOrAttachments);
@@ -129,7 +131,7 @@ const registerHandlers = (io, socket) => {
   socket.on(
     "message:send",
     safe(async (payload) => {
-      const { channelId, threadId, content, attachments } = sendSchema.parse(payload);
+      const { channelId, threadId, content, attachments, poll } = sendSchema.parse(payload);
       if (threadId) {
         const { thread, bitfield } = await loadThreadContext(threadId, user._id);
         const message = await messageService.createThreadMessage(thread, user, bitfield, {
@@ -143,6 +145,7 @@ const registerHandlers = (io, socket) => {
       const message = await messageService.createChannelMessage(channel, user, bitfield, {
         content,
         attachments,
+        poll,
       });
       return { message };
     })

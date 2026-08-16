@@ -66,7 +66,7 @@ export const CreateServerModal = ({ open, onClose, onCreated }) => {
         <Field label="Server name">
           <Input
             autoFocus
-            placeholder="CSE Batch '27"
+            placeholder="Study Group"
             value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             maxLength={100}
@@ -74,7 +74,7 @@ export const CreateServerModal = ({ open, onClose, onCreated }) => {
         </Field>
         <Field label="Description" hint="Optional — what is this server about?">
           <TextArea
-            placeholder="A place to discuss assignments, projects and everything CSE."
+            placeholder="A place to discuss assignments, projects and everything."
             value={form.description}
             onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
             maxLength={500}

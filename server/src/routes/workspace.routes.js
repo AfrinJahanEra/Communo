@@ -4,6 +4,9 @@ import { executeLimiter } from "../middleware/rateLimiter.js";
 import {
   createFileSchema,
   renameFileSchema,
+  createFolderSchema,
+  renameFolderSchema,
+  folderPathQuerySchema,
   executeSchema,
   fileIdParamSchema,
 } from "../validations/workspace.validation.js";
@@ -16,6 +19,9 @@ import {
   saveFile,
   getFileHistory,
   downloadFile,
+  createFolder,
+  renameFolder,
+  deleteFolder,
 } from "../controllers/workspace.controller.js";
 import { executeCode } from "../controllers/execution.controller.js";
 
@@ -47,6 +53,11 @@ router.get(
   validate({ params: fileIdParamSchema }),
   downloadFile
 );
+
+// Folders are identified by path, not id — see workspace.service.js for why.
+router.post("/folders", validate({ body: createFolderSchema }), createFolder);
+router.patch("/folders", validate({ body: renameFolderSchema }), renameFolder);
+router.delete("/folders", validate({ query: folderPathQuerySchema }), deleteFolder);
 
 router.post("/execute", executeLimiter, validate({ body: executeSchema }), executeCode);
 

@@ -51,7 +51,8 @@ const IdePage = () => {
   const editorApiRef = useRef(null);
 
   const [explorerOpen, setExplorerOpen] = useState(false);
-  const [modal, setModal] = useState(null); // { mode: "create" | "rename", file? }
+  // { mode: "create" | "rename" | "create-folder" | "rename-folder", file?, path? }
+  const [modal, setModal] = useState(null);
   const [minimap, setMinimap] = useState(false);
 
   // Per-file editor telemetry
@@ -167,6 +168,17 @@ const IdePage = () => {
     }
   };
 
+  const deleteFolder = async (path) => {
+    if (!window.confirm(`Delete folder "${path}" and everything inside it? This cannot be undone.`)) {
+      return;
+    }
+    try {
+      await ws.deleteFolder(path);
+    } catch (err) {
+      toast({ type: "error", title: "Delete failed", body: apiMessage(err) });
+    }
+  };
+
   // ---- render ----
   if (ws.loading) return <LoadingScreen label="Opening workspace…" />;
   if (ws.error) {
@@ -192,6 +204,9 @@ const IdePage = () => {
       onCreate={() => setModal({ mode: "create" })}
       onRename={(file) => setModal({ mode: "rename", file })}
       onDelete={deleteFile}
+      onCreateFolder={() => setModal({ mode: "create-folder" })}
+      onRenameFolder={(path) => setModal({ mode: "rename-folder", path })}
+      onDeleteFolder={deleteFolder}
     />
   );
 
@@ -419,6 +434,39 @@ const IdePage = () => {
         onSubmit={async (path) => {
           try {
             await ws.renameFile(idOf(modal.file._id), path);
+          } catch (err) {
+            throw new Error(apiMessage(err, err.message), { cause: err });
+          }
+        }}
+      />
+      <FilePathModal
+        open={modal?.mode === "create-folder"}
+        onClose={() => setModal(null)}
+        title="New folder"
+        submitLabel="Create"
+        fieldLabel="Folder path"
+        hint='Use "/" for nested folders, e.g. src/utils.'
+        placeholder="src/utils"
+        onSubmit={async (path) => {
+          try {
+            await ws.createFolder(path);
+          } catch (err) {
+            throw new Error(apiMessage(err, err.message), { cause: err });
+          }
+        }}
+      />
+      <FilePathModal
+        open={modal?.mode === "rename-folder"}
+        onClose={() => setModal(null)}
+        title="Rename folder"
+        initialPath={modal?.path || ""}
+        submitLabel="Rename"
+        fieldLabel="Folder path"
+        hint='Use "/" for nested folders, e.g. src/utils.'
+        placeholder="src/utils"
+        onSubmit={async (path) => {
+          try {
+            await ws.renameFolder(modal.path, path);
           } catch (err) {
             throw new Error(apiMessage(err, err.message), { cause: err });
           }

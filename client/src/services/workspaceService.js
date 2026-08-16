@@ -34,6 +34,26 @@ export const deleteFile = async (serverId, fileId) => {
   return data;
 };
 
+/**
+ * Folders are identified by path, not id (most are purely virtual, derived
+ * client-side from file paths) — see server workspace.service.js.
+ */
+export const createFolder = async (serverId, payload) => {
+  const { data } = await api.post(`${base(serverId)}/folders`, payload);
+  return data.folder;
+};
+
+/** Renames/moves a whole folder subtree. Returns every file/folder that moved. */
+export const renameFolder = async (serverId, from, to) => {
+  const { data } = await api.patch(`${base(serverId)}/folders`, { from, to });
+  return data.files;
+};
+
+export const deleteFolder = async (serverId, path) => {
+  const { data } = await api.delete(`${base(serverId)}/folders`, { params: { path } });
+  return data;
+};
+
 export const saveFile = async (serverId, fileId) => {
   const { data } = await api.post(`${base(serverId)}/files/${fileId}/save`);
   return data;

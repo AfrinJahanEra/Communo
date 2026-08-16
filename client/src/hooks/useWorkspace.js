@@ -255,6 +255,40 @@ export const useWorkspace = (serverId) => {
     [serverId]
   );
 
+  const createFolder = useCallback(
+    async (path) => {
+      const folder = await workspaceService.createFolder(serverId, { path });
+      // The socket event also adds it; insert defensively for instant feedback
+      setFiles((prev) =>
+        prev.some((f) => idOf(f._id) === idOf(folder._id)) ? prev : [...prev, folder]
+      );
+      return folder;
+    },
+    [serverId]
+  );
+
+  const renameFolder = useCallback(
+    async (fromPath, toPath) => {
+      const renamed = await workspaceService.renameFolder(serverId, fromPath, toPath);
+      const byId = new Map(renamed.map((f) => [idOf(f._id), f]));
+      setFiles((prev) => prev.map((f) => byId.get(idOf(f._id)) || f));
+      setOpenDoc((prev) => {
+        if (!prev) return prev;
+        const updated = byId.get(idOf(prev.file._id));
+        return updated
+          ? { ...prev, file: { ...prev.file, path: updated.path, language: updated.language } }
+          : prev;
+      });
+      return renamed;
+    },
+    [serverId]
+  );
+
+  const deleteFolder = useCallback(
+    (path) => workspaceService.deleteFolder(serverId, path),
+    [serverId]
+  );
+
   const saveActiveFile = useCallback(async () => {
     if (!activeFileIdRef.current) return null;
     const ack = await emitAck("file:save", { fileId: activeFileIdRef.current });
@@ -277,6 +311,9 @@ export const useWorkspace = (serverId) => {
     createFile,
     renameFile,
     deleteFile,
+    createFolder,
+    renameFolder,
+    deleteFolder,
     saveActiveFile,
   };
 };

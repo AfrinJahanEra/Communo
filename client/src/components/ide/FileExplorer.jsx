@@ -6,6 +6,7 @@ import {
   FilePlus2,
   Folder,
   FolderOpen,
+  FolderPlus,
   MoreHorizontal,
   Pencil,
   Trash2,
@@ -15,21 +16,32 @@ import { cn, idOf } from "../../lib/utils";
 
 /**
  * Workspace file tree. Files are flat records whose `path` encodes folders
- * ("src/utils/math.py"); the tree is derived on the client. Shows live
- * colored dots for collaborators editing each file.
+ * ("src/utils/math.py"); most folders are derived on the client purely from
+ * those paths, but an explicitly created (possibly empty) folder comes
+ * through as its own record with `type: "folder"`. Shows live colored dots
+ * for collaborators editing each file.
  */
+
+const ensureFolderNode = (root, segments) => {
+  let node = root;
+  for (const segment of segments) {
+    if (!node.folders.has(segment)) {
+      node.folders.set(segment, { folders: new Map(), files: [] });
+    }
+    node = node.folders.get(segment);
+  }
+  return node;
+};
 
 const buildTree = (files) => {
   const root = { folders: new Map(), files: [] };
   for (const file of files) {
     const segments = file.path.split("/");
-    let node = root;
-    for (const segment of segments.slice(0, -1)) {
-      if (!node.folders.has(segment)) {
-        node.folders.set(segment, { folders: new Map(), files: [] });
-      }
-      node = node.folders.get(segment);
+    if (file.type === "folder") {
+      ensureFolderNode(root, segments);
+      continue;
     }
+    const node = ensureFolderNode(root, segments.slice(0, -1));
     node.files.push({ ...file, name: segments[segments.length - 1] });
   }
   return root;
@@ -88,30 +100,57 @@ const FileRow = ({ file, active, editors, onOpen, onRename, onDelete, depth }) =
   </div>
 );
 
-const FolderNode = ({ name, node, depth, renderProps }) => {
+const FolderNode = ({ name, path, node, depth, renderProps }) => {
   const [open, setOpen] = useState(true);
   const Icon = open ? FolderOpen : Folder;
   const Chevron = open ? ChevronDown : ChevronRight;
   return (
     <div>
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-1.5 rounded-lg py-1.5 text-left text-[13px] font-medium text-ink-500 transition hover:bg-cream-300/60"
+      <div
+        className="group flex items-center gap-1 rounded-lg pr-1 transition hover:bg-cream-300/60"
         style={{ paddingLeft: depth * 14 + 6 }}
       >
-        <Chevron size={13} className="shrink-0 text-ink-300" />
-        <Icon size={14} className="shrink-0 text-lav-500" />
-        <span className="truncate">{name}</span>
-      </button>
-      {open && <TreeLevel node={node} depth={depth + 1} renderProps={renderProps} />}
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className="flex min-w-0 flex-1 items-center gap-1.5 py-1.5 text-left text-[13px] font-medium text-ink-500"
+        >
+          <Chevron size={13} className="shrink-0 text-ink-300" />
+          <Icon size={14} className="shrink-0 text-lav-500" />
+          <span className="truncate">{name}</span>
+        </button>
+
+        <Menu
+          trigger={({ toggle }) => (
+            <button
+              onClick={toggle}
+              className="rounded p-1 text-ink-300 opacity-0 transition hover:bg-cream-300 hover:text-ink-700 focus:opacity-100 group-hover:opacity-100"
+              aria-label={`Actions for ${name}`}
+            >
+              <MoreHorizontal size={13} />
+            </button>
+          )}
+          items={[
+            { label: "Rename", icon: Pencil, onClick: () => renderProps.onRenameFolder(path) },
+            { label: "Delete", icon: Trash2, danger: true, onClick: () => renderProps.onDeleteFolder(path) },
+          ]}
+        />
+      </div>
+      {open && <TreeLevel node={node} path={path} depth={depth + 1} renderProps={renderProps} />}
     </div>
   );
 };
 
-const TreeLevel = ({ node, depth, renderProps }) => (
+const TreeLevel = ({ node, path, depth, renderProps }) => (
   <div>
     {sortedFolders(node).map(([name, child]) => (
-      <FolderNode key={name} name={name} node={child} depth={depth} renderProps={renderProps} />
+      <FolderNode
+        key={name}
+        name={name}
+        path={path ? `${path}/${name}` : name}
+        node={child}
+        depth={depth}
+        renderProps={renderProps}
+      />
     ))}
     {sortedFiles(node).map((file) => (
       <FileRow
@@ -136,6 +175,9 @@ export const FileExplorer = ({
   onCreate,
   onRename,
   onDelete,
+  onCreateFolder,
+  onRenameFolder,
+  onDeleteFolder,
 }) => {
   const tree = useMemo(() => buildTree(files), [files]);
 
@@ -154,13 +196,22 @@ export const FileExplorer = ({
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center justify-between px-3 pb-1 pt-3">
         <p className="text-[11px] font-bold uppercase tracking-wider text-ink-300">Files</p>
-        <button
-          onClick={onCreate}
-          className="rounded-lg p-1.5 text-ink-500 transition hover:bg-lav-100 hover:text-lav-700"
-          title="New file"
-        >
-          <FilePlus2 size={15} />
-        </button>
+        <div className="flex items-center gap-0.5">
+          <button
+            onClick={onCreateFolder}
+            className="rounded-lg p-1.5 text-ink-500 transition hover:bg-lav-100 hover:text-lav-700"
+            title="New folder"
+          >
+            <FolderPlus size={15} />
+          </button>
+          <button
+            onClick={onCreate}
+            className="rounded-lg p-1.5 text-ink-500 transition hover:bg-lav-100 hover:text-lav-700"
+            title="New file"
+          >
+            <FilePlus2 size={15} />
+          </button>
+        </div>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
@@ -174,8 +225,17 @@ export const FileExplorer = ({
         ) : (
           <TreeLevel
             node={tree}
+            path=""
             depth={0}
-            renderProps={{ activeFileId, editorsByFile, onOpen, onRename, onDelete }}
+            renderProps={{
+              activeFileId,
+              editorsByFile,
+              onOpen,
+              onRename,
+              onDelete,
+              onRenameFolder,
+              onDeleteFolder,
+            }}
           />
         )}
       </div>

@@ -84,13 +84,44 @@ const messageSchema = new mongoose.Schema(
       ],
       default: [],
     },
+    // Channel-only "poll message": present instead of/alongside text content.
+    // Any channel member can vote (single choice) or edit the poll — see
+    // message.service.js voteOnPoll/editPoll for the (deliberately looser
+    // than normal edit-your-own-message) access rules.
+    poll: {
+      type: new mongoose.Schema(
+        {
+          question: { type: String, required: true, trim: true, maxlength: 300 },
+          options: {
+            type: [
+              new mongoose.Schema(
+                {
+                  text: { type: String, required: true, trim: true, maxlength: 80 },
+                  voterIds: {
+                    type: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+                    default: [],
+                  },
+                },
+                { _id: true }
+              ),
+            ],
+            validate: {
+              validator: (options) => options.length >= 2 && options.length <= 10,
+              message: "A poll needs between 2 and 10 options",
+            },
+          },
+        },
+        { _id: false }
+      ),
+      default: null,
+    },
   },
   { timestamps: true }
 );
 
 messageSchema.pre("validate", function preValidate() {
-  if (!this.content?.trim() && this.attachments.length === 0) {
-    this.invalidate("content", "Message must include text or at least one attachment");
+  if (!this.content?.trim() && this.attachments.length === 0 && !this.poll) {
+    this.invalidate("content", "Message must include text, an attachment, or a poll");
   }
 });
 

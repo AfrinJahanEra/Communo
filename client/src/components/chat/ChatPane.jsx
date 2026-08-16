@@ -60,6 +60,10 @@ export const ChatPane = ({
   canSend = true,
   sendDisabledHint,
   onStartThread,
+  onSummarize,
+  onVotePoll,
+  onOpenPollVoters,
+  onEditPoll,
   emptyTitle = "No messages yet",
   emptyBody = "Be the first to say hi 👋",
 }) => {
@@ -200,6 +204,9 @@ export const ChatPane = ({
                     onTogglePin={onTogglePin}
                     onToggleReaction={onToggleReaction}
                     onStartThread={onStartThread}
+                    onVotePoll={onVotePoll}
+                    onOpenPollVoters={onOpenPollVoters}
+                    onEditPoll={onEditPoll}
                   />
                 </div>
               );
@@ -214,6 +221,7 @@ export const ChatPane = ({
         disabled={!canSend}
         disabledHint={sendDisabledHint}
         onSend={send}
+        onSummarize={onSummarize}
         onTyping={notifyTyping}
         onStopTyping={stopTyping}
       />

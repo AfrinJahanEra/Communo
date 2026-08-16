@@ -60,6 +60,29 @@ export const deleteFile = asyncHandler(async (req, res) => {
   return sendOk(res, "File deleted");
 });
 
+export const createFolder = asyncHandler(async (req, res) => {
+  const workspace = await loadWorkspace(req);
+  const folder = await workspaceService.createFolder(workspace, req.user._id, req.body);
+  return sendCreated(res, "Folder created", { folder });
+});
+
+export const renameFolder = asyncHandler(async (req, res) => {
+  const workspace = await loadWorkspace(req);
+  const { files } = await workspaceService.renameFolder(
+    workspace,
+    req.body.from,
+    req.body.to,
+    req.user._id
+  );
+  return sendOk(res, "Folder renamed", { files });
+});
+
+export const deleteFolder = asyncHandler(async (req, res) => {
+  const workspace = await loadWorkspace(req);
+  const result = await workspaceService.deleteFolder(workspace, req.validatedQuery.path);
+  return sendOk(res, "Folder deleted", result);
+});
+
 export const saveFile = asyncHandler(async (req, res) => {
   const workspace = await loadWorkspace(req);
   const payload = await workspaceService.saveFile(workspace, req.params.fileId, req.user._id);

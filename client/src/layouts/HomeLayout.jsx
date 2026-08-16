@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { NavLink, Outlet, useOutletContext, useParams } from "react-router-dom";
+import { Outlet, useOutletContext, useParams } from "react-router-dom";
 import { Users } from "lucide-react";
 import { SidebarShell } from "../components/layout/SidebarShell";
 import { UserFooter } from "../components/layout/UserFooter";
 import { Avatar } from "../components/ui/Avatar";
+import { NavButton } from "../components/ui/NavButton";
 import { useAuth } from "../hooks/useAuth";
 import { useSocketEvent } from "../hooks/useSocket";
 import { listDms } from "../services/dmService";
@@ -68,13 +69,13 @@ const HomeLayout = () => {
         </div>
 
         <div className="flex-1 space-y-4 overflow-y-auto p-3">
-          <NavLink
+          <NavButton
             to="/app"
             end
             onClick={() => setSidebarOpen(false)}
             className={({ isActive }) =>
               cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition",
+                "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition",
                 isActive
                   ? "bg-lav-500 text-white shadow-sm"
                   : "text-ink-700 hover:bg-cream-300/70"
@@ -82,7 +83,7 @@ const HomeLayout = () => {
             }
           >
             <Users size={17} /> Friends
-          </NavLink>
+          </NavButton>
 
           <div>
             <p className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-ink-300">
@@ -98,12 +99,12 @@ const HomeLayout = () => {
                   const partner = dmPartner(dm, user?._id);
                   return (
                     <li key={dm._id}>
-                      <NavLink
+                      <NavButton
                         to={`/app/dms/${dm._id}`}
                         onClick={() => setSidebarOpen(false)}
                         className={({ isActive }) =>
                           cn(
-                            "flex items-center gap-2.5 rounded-xl px-3 py-2 transition",
+                            "flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left transition",
                             isActive ? "bg-lav-100 text-lav-800" : "text-ink-700 hover:bg-cream-300/70"
                           )
                         }
@@ -117,7 +118,7 @@ const HomeLayout = () => {
                           )}
                         </span>
                         <span className="truncate text-sm font-medium">{displayNameOf(partner)}</span>
-                      </NavLink>
+                      </NavButton>
                     </li>
                   );
                 })}

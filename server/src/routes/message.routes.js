@@ -6,6 +6,8 @@ import {
   messageIdParamSchema,
   updateMessageSchema,
   toggleReactionSchema,
+  pollVoteSchema,
+  editPollSchema,
 } from "../validations/message.validation.js";
 import {
   updateMessage,
@@ -13,6 +15,8 @@ import {
   pinMessage,
   unpinMessage,
   toggleMessageReaction,
+  voteOnPoll,
+  editPoll,
 } from "../controllers/message.controller.js";
 
 const router = Router();
@@ -29,5 +33,9 @@ router.delete("/:messageId", deleteMessage);
 router.post("/:messageId/pin", pinMessage);
 router.delete("/:messageId/pin", unpinMessage);
 router.post("/:messageId/reactions", validate({ body: toggleReactionSchema }), toggleMessageReaction);
+
+// Polls (any channel member has full access — see message.service.js)
+router.post("/:messageId/poll/vote", validate({ body: pollVoteSchema }), voteOnPoll);
+router.patch("/:messageId/poll", validate({ body: editPollSchema }), editPoll);
 
 export default router;

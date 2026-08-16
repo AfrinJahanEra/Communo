@@ -23,14 +23,36 @@ export const attachmentSchema = z.object({
   height: z.number().int().positive().optional(),
 });
 
-// A message needs text or at least one attachment, but not necessarily both
+const pollOptionText = z
+  .string()
+  .trim()
+  .min(1, "Option cannot be empty")
+  .max(80, "Option cannot exceed 80 characters");
+
+/** Question + 2-10 answer choices. Votes are managed separately (poll/vote). */
+export const pollSchema = z.object({
+  question: z.string().trim().min(1, "Question is required").max(300, "Question cannot exceed 300 characters"),
+  options: z
+    .array(pollOptionText)
+    .min(2, "A poll needs at least 2 options")
+    .max(10, "A poll can have at most 10 options"),
+});
+
+export const editPollSchema = pollSchema;
+
+export const pollVoteSchema = z.object({
+  optionId: objectId("option id"),
+});
+
+// A message needs text, an attachment, or a poll — not necessarily all three
 export const createMessageSchema = z
   .object({
     content: z.string().trim().max(2000, "Message cannot exceed 2000 characters").default(""),
     attachments: z.array(attachmentSchema).max(10, "At most 10 attachments per message").default([]),
+    poll: pollSchema.optional(),
   })
-  .refine((data) => data.content.length > 0 || data.attachments.length > 0, {
-    message: "Message must include text or at least one attachment",
+  .refine((data) => data.content.length > 0 || data.attachments.length > 0 || Boolean(data.poll), {
+    message: "Message must include text, an attachment, or a poll",
     path: ["content"],
   });
 

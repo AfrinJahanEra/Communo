@@ -5,6 +5,7 @@ import {
   requireChannelAccess,
   requireChannelPermission,
 } from "../middleware/channelAuth.js";
+import { aiLimiter } from "../middleware/rateLimiter.js";
 import { PERMISSIONS } from "../constants/permissions.js";
 import {
   channelIdParamSchema,
@@ -31,6 +32,7 @@ import {
   listChannelMessages,
   listChannelPins,
 } from "../controllers/message.controller.js";
+import { summarizeChannel } from "../controllers/summary.controller.js";
 
 const router = Router();
 
@@ -79,6 +81,7 @@ router.post(
 );
 router.get("/:channelId/pins", listChannelPins);
 router.post("/:channelId/read", markChannelRead);
+router.post("/:channelId/summarize", aiLimiter, summarizeChannel);
 
 // Live voice roster (Phase 6)
 router.get("/:channelId/voice", getVoiceParticipants);
