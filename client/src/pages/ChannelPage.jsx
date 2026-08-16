@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useOutletContext, useParams } from "react-router-dom";
-import { Hash, Megaphone, MessagesSquare, Pin, Volume2 } from "lucide-react";
+import { Hash, Megaphone, MessagesSquare, Pin, Sparkles, Volume2 } from "lucide-react";
 import { ChatHeader, HeaderButton } from "../components/chat/ChatHeader";
 import { ChatPane } from "../components/chat/ChatPane";
 import { PinsPanel } from "../components/chat/PinsPanel";
 import { ThreadPanel } from "../components/chat/ThreadPanel";
+import { SummaryPanel } from "../components/chat/SummaryPanel";
 import { MemberList } from "../components/server/MemberList";
 import { VoiceRoom } from "../components/voice/VoiceRoom";
 import { EmptyState } from "../components/ui/EmptyState";
 import { useChat } from "../hooks/useChat";
 import { hasPermission, PERMISSIONS } from "../lib/permissions";
-import { listChannelPins, markChannelRead } from "../services/channelService";
+import { listChannelPins, markChannelRead, summarizeChannel } from "../services/channelService";
 
 const CHANNEL_ICONS = { text: Hash, announcement: Megaphone, voice: Volume2 };
 
@@ -27,6 +28,8 @@ const ChannelPage = () => {
   const [pinsOpen, setPinsOpen] = useState(false);
   const [threadsOpen, setThreadsOpen] = useState(false);
   const [threadStart, setThreadStart] = useState(null);
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [summaryRequestId, setSummaryRequestId] = useState(0);
 
   const chat = useChat("channel", channel && channel.type !== "voice" ? channelId : null);
 
@@ -72,6 +75,11 @@ const ChannelPage = () => {
     setThreadsOpen(true);
   };
 
+  const onSummarize = () => {
+    setSummaryOpen(true);
+    setSummaryRequestId((n) => n + 1);
+  };
+
   return (
     <div className="relative flex h-full min-h-0">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -92,8 +100,18 @@ const ChannelPage = () => {
             label="Threads"
             active={threadsOpen}
             onClick={() => {
+              setSummaryOpen(false);
               setThreadStart(null);
               setThreadsOpen((o) => !o);
+            }}
+          />
+          <HeaderButton
+            icon={Sparkles}
+            label="Summarize chat"
+            active={summaryOpen}
+            onClick={() => {
+              setThreadsOpen(false);
+              onSummarize();
             }}
           />
         </ChatHeader>
@@ -112,6 +130,7 @@ const ChannelPage = () => {
               : "You do not have permission to send messages here."
           }
           onStartThread={onStartThread}
+          onSummarize={onSummarize}
           emptyTitle={`Welcome to #${channel.name}`}
           emptyBody={channel.topic || "This is the start of the channel."}
         />
@@ -129,7 +148,17 @@ const ChannelPage = () => {
         />
       )}
 
-      {!threadsOpen && <MemberList server={server} members={members} />}
+      {summaryOpen && (
+        <SummaryPanel
+          id={channel._id}
+          title={`#${channel.name}`}
+          fetchSummary={summarizeChannel}
+          requestId={summaryRequestId}
+          onClose={() => setSummaryOpen(false)}
+        />
+      )}
+
+      {!threadsOpen && !summaryOpen && <MemberList server={server} members={members} />}
     </div>
   );
 };

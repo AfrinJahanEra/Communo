@@ -18,15 +18,19 @@ export const UserFooter = ({ onOpenSettings }) => {
     <div className="flex items-center gap-2 border-t border-cream-300 bg-cream-200/70 px-3 py-2.5">
       <Menu
         align="left"
+        className="min-w-0 flex-1"
         trigger={({ toggle }) => (
           <button
             onClick={toggle}
-            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-1.5 py-1 text-left transition hover:bg-cream-300/60"
+            className="flex w-full min-w-0 items-center gap-2.5 rounded-xl px-1.5 py-1 text-left transition hover:bg-cream-300/60"
             title="Set status"
           >
             <Avatar user={user} size="sm" showStatus />
             <span className="min-w-0">
-              <span className="block truncate text-sm font-semibold text-ink-900">
+              <span
+                title={displayNameOf(user)}
+                className="block truncate text-sm font-semibold text-ink-900"
+              >
                 {displayNameOf(user)}
               </span>
               <span className="block truncate text-[11px] text-ink-500">
@@ -46,14 +50,14 @@ export const UserFooter = ({ onOpenSettings }) => {
       <button
         onClick={onOpenSettings}
         title="User settings"
-        className="rounded-lg p-2 text-ink-500 transition hover:bg-cream-300/60 hover:text-ink-900"
+        className="shrink-0 rounded-lg p-2 text-ink-500 transition hover:bg-cream-300/60 hover:text-ink-900"
       >
         <Settings size={17} />
       </button>
       <button
         onClick={logout}
         title="Log out"
-        className="rounded-lg p-2 text-ink-500 transition hover:bg-status-dnd/10 hover:text-status-dnd"
+        className="shrink-0 rounded-lg p-2 text-ink-500 transition hover:bg-status-dnd/10 hover:text-status-dnd"
       >
         <LogOut size={17} />
       </button>

@@ -39,3 +39,9 @@ export const toggleDmMessageReaction = async (messageId, emoji) => {
   const { data } = await api.post(`/dms/messages/${messageId}/reactions`, { emoji });
   return data.message;
 };
+
+/** { overview, keyPoints?, decisions?, actionItems?, unresolved?, messageCount } */
+export const summarizeDm = async (dmId) => {
+  const { data } = await api.post(`/dms/${dmId}/summarize`);
+  return data.summary;
+};

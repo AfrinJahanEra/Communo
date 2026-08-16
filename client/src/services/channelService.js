@@ -68,3 +68,9 @@ export const getVoiceParticipants = async (channelId) => {
   const { data } = await api.get(`/channels/${channelId}/voice`);
   return data.participants;
 };
+
+/** { overview, keyPoints?, decisions?, actionItems?, unresolved?, messageCount } */
+export const summarizeChannel = async (channelId) => {
+  const { data } = await api.post(`/channels/${channelId}/summarize`);
+  return data.summary;
+};

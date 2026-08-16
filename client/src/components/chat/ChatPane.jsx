@@ -60,6 +60,7 @@ export const ChatPane = ({
   canSend = true,
   sendDisabledHint,
   onStartThread,
+  onSummarize,
   emptyTitle = "No messages yet",
   emptyBody = "Be the first to say hi 👋",
 }) => {
@@ -214,6 +215,7 @@ export const ChatPane = ({
         disabled={!canSend}
         disabledHint={sendDisabledHint}
         onSend={send}
+        onSummarize={onSummarize}
         onTyping={notifyTyping}
         onStopTyping={stopTyping}
       />

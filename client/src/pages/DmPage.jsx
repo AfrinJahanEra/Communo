@@ -1,15 +1,16 @@
 import { useEffect, useState } from "react";
 import { useOutletContext, useParams } from "react-router-dom";
-import { AtSign } from "lucide-react";
-import { ChatHeader } from "../components/chat/ChatHeader";
+import { AtSign, Sparkles } from "lucide-react";
+import { ChatHeader, HeaderButton } from "../components/chat/ChatHeader";
 import { ChatPane } from "../components/chat/ChatPane";
+import { SummaryPanel } from "../components/chat/SummaryPanel";
 import { Avatar } from "../components/ui/Avatar";
 import { EmptyState } from "../components/ui/EmptyState";
 import { LoadingScreen } from "../components/ui/Spinner";
 import { useAuth } from "../hooks/useAuth";
 import { useChat } from "../hooks/useChat";
 import { usePresence } from "../hooks/usePresence";
-import { listDms, markDmRead } from "../services/dmService";
+import { listDms, markDmRead, summarizeDm } from "../services/dmService";
 import { displayNameOf, dmPartner, STATUS_META, timeAgo } from "../lib/utils";
 
 /* The backend exposes DMs only as a list — resolve one by id from it. */
@@ -27,6 +28,8 @@ const DmPage = () => {
   const known = dms.find((d) => d._id === dmId);
   const [fetched, setFetched] = useState(null);
   const [notFound, setNotFound] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [summaryRequestId, setSummaryRequestId] = useState(0);
   const fetchedId = fetched && fetched._id;
   const dm = known || (fetchedId === dmId ? fetched : null);
   const dmKey = dm && dm._id;
@@ -73,24 +76,48 @@ const DmPage = () => {
       ? `Last seen ${timeAgo(lastSeenOf(partnerId))}`
       : STATUS_META[status].label;
 
-  return (
-    <div className="flex h-full min-h-0 flex-col">
-      <ChatHeader
-        title={displayNameOf(partner)}
-        subtitle={subtitle}
-        onOpenSidebar={openSidebar}
-      >
-        <Avatar user={partner} size="sm" showStatus />
-      </ChatHeader>
+  const onSummarize = () => {
+    setSummaryOpen(true);
+    setSummaryRequestId((n) => n + 1);
+  };
 
-      <ChatPane
-        chat={chat}
-        placeholder={`Message @${(partner && partner.username) || ""}`}
-        canManage={false}
-        canPin={false}
-        emptyTitle={`This is the start of your conversation with ${displayNameOf(partner)}`}
-        emptyBody="Say hi, share code snippets, plan your next study session."
-      />
+  return (
+    <div className="relative flex h-full min-h-0">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <ChatHeader
+          title={displayNameOf(partner)}
+          subtitle={subtitle}
+          onOpenSidebar={openSidebar}
+        >
+          <HeaderButton
+            icon={Sparkles}
+            label="Summarize chat"
+            active={summaryOpen}
+            onClick={onSummarize}
+          />
+          <Avatar user={partner} size="sm" showStatus />
+        </ChatHeader>
+
+        <ChatPane
+          chat={chat}
+          placeholder={`Message @${(partner && partner.username) || ""}`}
+          canManage={false}
+          canPin={false}
+          onSummarize={onSummarize}
+          emptyTitle={`This is the start of your conversation with ${displayNameOf(partner)}`}
+          emptyBody="Say hi, share code snippets, plan your next study session."
+        />
+      </div>
+
+      {summaryOpen && (
+        <SummaryPanel
+          id={dm._id}
+          title={`@${(partner && partner.username) || "conversation"}`}
+          fetchSummary={summarizeDm}
+          requestId={summaryRequestId}
+          onClose={() => setSummaryOpen(false)}
+        />
+      )}
     </div>
   );
 };

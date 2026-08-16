@@ -3,10 +3,14 @@ import { Code2, FileText, Paperclip, SendHorizonal, X } from "lucide-react";
 import { Spinner } from "../ui/Spinner";
 import { cn, formatBytes } from "../../lib/utils";
 import { uploadAttachment } from "../../services/attachmentService";
+import { SlashCommandMenu } from "./SlashCommandMenu";
 
 const MAX_LENGTH = 2000;
 const MAX_FILES = 10;
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // matches the server-side limit
+const SLASH_COMMANDS = [
+  { command: "summarize-chat", description: "Summarize the recent conversation" },
+];
 
 const isImageFile = (file) => file.type.startsWith("image/");
 
@@ -39,7 +43,7 @@ const FilePreviewChip = ({ entry, onRemove }) => (
  * newline), typing broadcast, file attachments + a helper that wraps a
  * code snippet in fences.
  */
-export const Composer = ({ placeholder, disabled, disabledHint, onSend, onTyping, onStopTyping }) => {
+export const Composer = ({ placeholder, disabled, disabledHint, onSend, onSummarize, onTyping, onStopTyping }) => {
   const [value, setValue] = useState("");
   const [files, setFiles] = useState([]); // [{ id, file, previewUrl }]
   const [sending, setSending] = useState(false);
@@ -115,7 +119,30 @@ export const Composer = ({ placeholder, disabled, disabledHint, onSend, onTyping
     }
   };
 
+  const slashMatches =
+    value.startsWith("/") && !sending
+      ? SLASH_COMMANDS.filter((c) => c.command.startsWith(value.slice(1).toLowerCase()))
+      : [];
+  const showSlashMenu = slashMatches.length > 0;
+
+  const selectCommand = () => {
+    onSummarize?.();
+    setValue("");
+    onStopTyping?.();
+    requestAnimationFrame(resize);
+  };
+
   const onKeyDown = (e) => {
+    if (showSlashMenu && e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      selectCommand();
+      return;
+    }
+    if (showSlashMenu && e.key === "Escape") {
+      e.preventDefault();
+      setValue("");
+      return;
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       submit();
@@ -149,7 +176,8 @@ export const Composer = ({ placeholder, disabled, disabledHint, onSend, onTyping
   const canSubmit = (value.trim().length > 0 || files.length > 0) && !sending;
 
   return (
-    <div className="border-t border-cream-300 bg-cream-50 px-4 py-3">
+    <div className="relative border-t border-cream-300 bg-cream-50 px-4 py-3">
+      {showSlashMenu && <SlashCommandMenu commands={slashMatches} onSelect={selectCommand} />}
       {error && <p className="mb-1.5 text-xs text-status-dnd">{error}</p>}
       {files.length > 0 && (
         <div className="mb-2 flex flex-wrap gap-2">
