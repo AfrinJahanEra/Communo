@@ -13,7 +13,7 @@ You will be given a chronological transcript of a text channel, one message
 per line in the form "name: message".
 
 Produce a summary with these sections:
-- overview: 2-4 sentences giving a short overview of the conversation.
+- overview: 2-10 sentences giving a short overview of the conversation.
 - keyPoints: the main topics/points that were actually discussed.
 - decisions: things the participants actually decided, not merely proposed
   or discussed. Leave empty if nothing was decided.
