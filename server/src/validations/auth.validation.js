@@ -29,13 +29,9 @@ export const loginSchema = z.object({
 });
 
 export const verifyEmailSchema = z.object({
-  // 48 random bytes rendered as hex = 96 characters
-  token: z
-    .string()
-    .trim()
-    .min(32, "Invalid verification token")
-    .max(256, "Invalid verification token")
-    .regex(/^[a-f0-9]+$/, "Invalid verification token"),
+  email,
+  // Codes are generated with crypto.randomInt(100000, 1000000)
+  code: z.string().trim().regex(/^\d{6}$/, "Enter the 6-digit code from your email"),
 });
 
 export const resendVerificationSchema = z.object({
@@ -44,4 +40,9 @@ export const resendVerificationSchema = z.object({
 
 export const googleAuthSchema = z.object({
   credential: z.string().trim().min(1, "Google credential is required"),
+});
+
+export const adminLoginSchema = z.object({
+  email,
+  secretKey: z.string().min(1, "Secret key is required").max(128),
 });

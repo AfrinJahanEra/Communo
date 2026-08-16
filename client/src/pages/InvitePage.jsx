@@ -57,7 +57,7 @@ const InvitePage = () => {
             <h1 className="mt-4 text-lg font-extrabold text-ink-900">Invite invalid</h1>
             <p className="mt-1.5 text-sm text-ink-500">{error}</p>
             <Button className="mt-6 w-full" onClick={() => navigate("/app")}>
-              Back to CodeCord
+              Back to Communo
             </Button>
           </>
         ) : (

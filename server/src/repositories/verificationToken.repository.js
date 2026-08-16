@@ -4,6 +4,12 @@ export const create = (data) => VerificationToken.create(data);
 
 export const findByTokenHash = (tokenHash) => VerificationToken.findOne({ tokenHash });
 
+/** Most recent token of a type for a user (used by the code-entry flow). */
+export const findLatestForUser = (
+  userId,
+  type = VERIFICATION_TOKEN_TYPES.EMAIL_VERIFICATION
+) => VerificationToken.findOne({ userId, type }).sort({ createdAt: -1 });
+
 export const markUsed = (id) =>
   VerificationToken.findByIdAndUpdate(id, { usedAt: new Date() }, { returnDocument: "after" });
 

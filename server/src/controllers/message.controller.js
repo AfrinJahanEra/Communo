@@ -89,6 +89,6 @@ export const voteOnPoll = asyncHandler(async (req, res) => {
 });
 
 export const editPoll = asyncHandler(async (req, res) => {
-  const message = await messageService.editPoll(req.message, req.body);
+  const message = await messageService.editPoll(req.message, req.user._id, req.body);
   return sendOk(res, "Poll updated", { message });
 });

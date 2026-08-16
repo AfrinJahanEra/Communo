@@ -8,11 +8,12 @@ import * as refreshTokenRepository from "../repositories/refreshToken.repository
 import * as verificationTokenRepository from "../repositories/verificationToken.repository.js";
 import { VERIFICATION_TOKEN_TYPES } from "../models/VerificationToken.js";
 import { AUTH_PROVIDERS } from "../models/User.js";
+import { GLOBAL_ROLES } from "../constants/roles.js";
 import { sendVerificationEmail } from "./email.service.js";
 import {
   signAccessToken,
   generateRefreshToken,
-  generateOpaqueToken,
+  generateVerificationCode,
   hashToken,
   refreshTokenExpiryDate,
   emailVerificationExpiryDate,
@@ -36,9 +37,9 @@ const issueTokenPair = async (user, { family, userAgent = "", ip = "" } = {}) =>
 };
 
 /**
- * Creates a fresh verification token and emails the link.
- * Any previous unused token for this user is dropped, so only the newest
- * link works.
+ * Creates a fresh 6-digit verification code and emails it.
+ * Any previous unused code for this user is dropped, so only the newest
+ * code works. Only the SHA-256 hash is stored.
  */
 const issueVerificationEmail = async (user) => {
   await verificationTokenRepository.deleteAllForUser(
@@ -46,22 +47,36 @@ const issueVerificationEmail = async (user) => {
     VERIFICATION_TOKEN_TYPES.EMAIL_VERIFICATION
   );
 
-  const rawToken = generateOpaqueToken();
+  const code = generateVerificationCode();
 
   await verificationTokenRepository.create({
     userId: user._id,
-    tokenHash: hashToken(rawToken),
+    tokenHash: hashToken(code),
     type: VERIFICATION_TOKEN_TYPES.EMAIL_VERIFICATION,
     expiresAt: emailVerificationExpiryDate(),
   });
 
   try {
-    await sendVerificationEmail(user, rawToken);
+    await sendVerificationEmail(user, code);
   } catch (error) {
     // The account already exists; a failed send should not roll it back.
     // The user can trigger /resend-verification instead.
     logger.error({ err: error, userId: user._id }, "Failed to send verification email");
   }
+};
+
+/** Constant-time comparison of two sha-256 hex hashes. */
+const hashesMatch = (a, b) => {
+  const ba = Buffer.from(String(a), "hex");
+  const bb = Buffer.from(String(b), "hex");
+  return ba.length === bb.length && ba.length > 0 && crypto.timingSafeEqual(ba, bb);
+};
+
+/** Constant-time comparison of two plain strings (secret-key checks). */
+const stringsMatch = (a, b) => {
+  const ba = Buffer.from(String(a), "utf8");
+  const bb = Buffer.from(String(b), "utf8");
+  return ba.length === bb.length && ba.length > 0 && crypto.timingSafeEqual(ba, bb);
 };
 
 /** Builds a unique username from an email local part, e.g. "john.doe" -> "john.doe2". */
@@ -89,7 +104,25 @@ const generateUniqueUsername = async (seed) => {
   return candidate;
 };
 
+/**
+ * Registration/login is restricted to institutional emails (e.g. @iut-dhaka.edu).
+ * Skipped when ALLOWED_EMAIL_DOMAINS is empty.
+ */
+const assertAllowedEmail = (email) => {
+  if (env.ALLOWED_EMAIL_DOMAINS.length === 0) return;
+
+  const domain = String(email).toLowerCase().split("@")[1];
+  if (!env.ALLOWED_EMAIL_DOMAINS.includes(domain)) {
+    const allowed = env.ALLOWED_EMAIL_DOMAINS.map((d) => `@${d}`).join(" or ");
+    throw ApiError.forbidden(`Only ${allowed} email addresses can register or log in`, [
+      { field: "email", code: "EMAIL_DOMAIN_NOT_ALLOWED", message: `Email must end with ${allowed}` },
+    ]);
+  }
+};
+
 export const register = async ({ username, email, password }, meta) => {
+  assertAllowedEmail(email);
+
   const existingUser = await userRepository.findByEmailOrUsername(email, username);
   if (existingUser) {
     throw ApiError.conflict(
@@ -116,6 +149,8 @@ export const register = async ({ username, email, password }, meta) => {
 };
 
 export const login = async ({ email, password }, meta) => {
+  assertAllowedEmail(email);
+
   const user = await userRepository.findByEmail(email, { withPassword: true });
 
   // Generic message on both branches — no user enumeration
@@ -135,34 +170,80 @@ export const login = async ({ email, password }, meta) => {
   return { user, ...tokens };
 };
 
-/** Confirms an email link and logs the user in, so they land straight in the app. */
-export const verifyEmail = async (presentedToken, meta) => {
-  const stored = await verificationTokenRepository.findByTokenHash(hashToken(presentedToken));
+/**
+ * Separate admin sign-in: the configured admin email plus the secret key from
+ * .env. No password, no email verification, and it never touches the domain
+ * restriction used for regular users. Anyone holding the key logs in as the
+ * same shared admin account.
+ */
+export const adminLogin = async ({ email, secretKey }, meta) => {
+  const emailMatches = stringsMatch(email.toLowerCase(), env.ADMIN_EMAIL);
+  const keyMatches = stringsMatch(secretKey, env.ADMIN_SECRET_KEY);
 
+  // Same generic message either way — no account enumeration
+  if (!emailMatches || !keyMatches) {
+    throw ApiError.unauthorized("Invalid admin email or secret key");
+  }
+
+  let user = await userRepository.findByEmail(env.ADMIN_EMAIL);
+
+  if (!user) {
+    user = await userRepository.create({
+      username: await generateUniqueUsername("admin"),
+      email: env.ADMIN_EMAIL,
+      // Unusable placeholder — admins authenticate with the secret key only
+      password: crypto.randomBytes(24).toString("hex"),
+      authProvider: AUTH_PROVIDERS.LOCAL,
+      role: GLOBAL_ROLES.ADMIN,
+      isEmailVerified: true,
+      displayName: "Administrator",
+    });
+  } else if (user.role !== GLOBAL_ROLES.ADMIN) {
+    user = await userRepository.updateById(user._id, { role: GLOBAL_ROLES.ADMIN });
+  }
+
+  if (!user.isActive) {
+    throw ApiError.forbidden("Account is deactivated");
+  }
+
+  const tokens = await issueTokenPair(user, meta);
+  return { user, ...tokens };
+};
+
+/** Confirms the emailed 6-digit code and logs the user in, so they land straight in the app. */
+export const verifyEmail = async ({ email, code }, meta) => {
   const invalid = ApiError.badRequest(
-    "This verification link is invalid or has expired. Request a new one."
+    "That code is invalid or has expired. Request a new one."
   );
+
+  const user = await userRepository.findByEmail(email);
+  if (!user) throw invalid;
+  if (!user.isActive) throw ApiError.forbidden("Account is deactivated");
+  assertAllowedEmail(user.email);
+
+  // Already verified (e.g. re-opening the page) — just sign them in.
+  if (user.isEmailVerified) {
+    const tokens = await issueTokenPair(user, meta);
+    return { user, ...tokens };
+  }
+
+  const stored = await verificationTokenRepository.findLatestForUser(user._id);
 
   if (!stored || stored.type !== VERIFICATION_TOKEN_TYPES.EMAIL_VERIFICATION) throw invalid;
   if (stored.usedAt) throw invalid;
   if (stored.expiresAt < new Date()) throw invalid;
-
-  const user = await userRepository.findById(stored.userId);
-  if (!user) throw invalid;
-  if (!user.isActive) throw ApiError.forbidden("Account is deactivated");
+  if (!hashesMatch(stored.tokenHash, hashToken(code))) throw invalid;
 
   await verificationTokenRepository.markUsed(stored._id);
 
-  const verifiedUser = user.isEmailVerified
-    ? user
-    : await userRepository.updateById(user._id, { isEmailVerified: true });
+  const verifiedUser = await userRepository.updateById(user._id, { isEmailVerified: true });
 
   const tokens = await issueTokenPair(verifiedUser, meta);
   return { user: verifiedUser, ...tokens };
 };
 
 /**
- * Resends the verification link. Always resolves the same way regardless of
+ * Resends the verification code. Always resolves the same way regardless of
  * whether the address exists, so this endpoint cannot be used to discover
  * registered emails.
  */
@@ -191,6 +272,7 @@ export const resendVerification = async (email) => {
  */
 export const googleAuth = async (credential, meta) => {
   const profile = await verifyGoogleIdToken(credential);
+  assertAllowedEmail(profile.email);
 
   let user = await userRepository.findByGoogleId(profile.googleId);
 

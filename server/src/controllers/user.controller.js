@@ -16,7 +16,7 @@ export const updateMe = asyncHandler(async (req, res) => {
 
 // @route POST /api/v1/users/me/avatar
 export const updateAvatar = asyncHandler(async (req, res) => {
-  const user = await userService.updateAvatar(req.user._id, req.file?.path);
+  const user = await userService.updateAvatar(req.user._id, req.file);
   sendOk(res, "Avatar updated", { user });
 });
 

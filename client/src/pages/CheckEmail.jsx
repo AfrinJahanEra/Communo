@@ -40,8 +40,8 @@ const CheckEmail = () => {
       // The server answers identically whether or not the account exists
       toast({
         type: "success",
-        title: "Link sent",
-        body: "If that account still needs verifying, a new link is on its way.",
+        title: "Code sent",
+        body: "If that account still needs verifying, a new code is on its way.",
       });
       setCooldown(RESEND_COOLDOWN_SECONDS);
     } catch (err) {
@@ -69,16 +69,16 @@ const CheckEmail = () => {
           <p className="mt-2 text-sm text-ink-500">
             {location.state?.email ? (
               <>
-                We sent a verification link to{" "}
-                <span className="font-semibold text-ink-900">{location.state.email}</span>. Open it
-                to activate your account.
+                We emailed a 6-digit verification code to{" "}
+                <span className="font-semibold text-ink-900">{location.state.email}</span>. Enter
+                it on the verification page to activate your account.
               </>
             ) : (
-              "Open the verification link we emailed you to activate your account."
+              "Enter the 6-digit code we emailed you to activate your account."
             )}
           </p>
           <p className="mt-2 text-xs text-ink-300">
-            The link expires in 24 hours. If it is not there, check your spam folder.
+            The code expires in 24 hours. If it is not there, check your spam folder.
           </p>
 
           <div className="mt-6 space-y-3 text-left">
@@ -95,13 +95,20 @@ const CheckEmail = () => {
             )}
             <Button
               type="button"
+              className="w-full"
+              onClick={() => navigate("/verify-email", { state: { email } })}
+            >
+              Enter the code
+            </Button>
+            <Button
+              type="button"
               variant="outline"
               className="w-full"
               loading={sending}
               disabled={cooldown > 0}
               onClick={onResend}
             >
-              {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend verification email"}
+              {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}
             </Button>
             <Button type="button" variant="ghost" className="w-full" onClick={() => navigate("/login")}>
               Back to log in

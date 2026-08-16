@@ -33,33 +33,27 @@ const escapeHtml = (value = "") =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 
-const verificationTemplate = ({ displayName, verifyUrl, expiresHours }) => `
+const verificationTemplate = ({ displayName, code, expiresHours }) => `
 <!doctype html>
 <html>
   <body style="margin:0;padding:24px;background:#0f1115;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
       <tr>
         <td align="center">
-          <table role="presentation" width="100%" style="max-width:520px;background:#181b21;border-radius:12px;padding:32px;">
+          <table role="presentation" width="100%" style="max-width:520px;background:#352b49;border-radius:12px;padding:32px;">
             <tr>
               <td>
-                <h1 style="margin:0 0 16px;color:#ffffff;font-size:22px;">Verify your email</h1>
-                <p style="margin:0 0 12px;color:#c3c9d4;font-size:15px;line-height:1.6;">
-                  Hi ${escapeHtml(displayName)}, welcome to CodeCord. Confirm this address to activate your account.
+                <h1 style="margin:0 0 16px;color:#ffffff;font-size:22px;">Your verification code</h1>
+                <p style="margin:0 0 20px;color:#c3c9d4;font-size:15px;line-height:1.6;">
+                  Hi ${escapeHtml(displayName)}, welcome to Communo. Enter this code on the
+                  verification page to activate your account:
                 </p>
-                <p style="margin:24px 0;">
-                  <a href="${verifyUrl}"
-                     style="display:inline-block;background:#5865f2;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:600;font-size:15px;">
-                    Verify email
-                  </a>
+                <p style="margin:0 0 24px;padding:18px 12px;text-align:center;background:#241d33;border:1px solid #614f83;border-radius:10px;">
+                  <span style="font-size:34px;font-weight:700;letter-spacing:10px;color:#ffffff;font-family:Consolas,Menlo,monospace;">${code}</span>
                 </p>
-                <p style="margin:0 0 12px;color:#8b93a3;font-size:13px;line-height:1.6;">
-                  This link expires in ${expiresHours} hours and can only be used once.
-                  If the button does not work, paste this into your browser:
-                </p>
-                <p style="margin:0 0 20px;color:#5865f2;font-size:12px;word-break:break-all;">${verifyUrl}</p>
-                <p style="margin:0;color:#6b7280;font-size:12px;line-height:1.6;">
-                  Did not create a CodeCord account? You can ignore this email.
+                <p style="margin:0 0 20px;color:#8b93a3;font-size:13px;line-height:1.6;">
+                  The code expires in ${expiresHours} hours and can only be used once.
+                  If you did not try to sign up, you can ignore this email.
                 </p>
               </td>
             </tr>
@@ -71,22 +65,21 @@ const verificationTemplate = ({ displayName, verifyUrl, expiresHours }) => `
 </html>
 `;
 
-export const sendVerificationEmail = async (user, rawToken) => {
-  const verifyUrl = `${env.CLIENT_URL}/verify-email?token=${encodeURIComponent(rawToken)}`;
+export const sendVerificationEmail = async (user, code) => {
   const expiresHours = env.EMAIL_VERIFICATION_EXPIRES_HOURS;
 
   if (!env.isMailConfigured && env.isDevelopment) {
     // Makes the flow testable before any SMTP account exists
-    logger.info(`\n\n  Verification link for ${user.email}:\n  ${verifyUrl}\n`);
+    logger.info(`\n\n  Verification code for ${user.email}: ${code}\n`);
   }
 
   return sendMail({
     to: user.email,
-    subject: "Verify your CodeCord email",
-    text: `Welcome to CodeCord. Verify your email within ${expiresHours} hours: ${verifyUrl}`,
+    subject: `Your Communo verification code is ${code}`,
+    text: `Welcome to Communo. Your verification code is ${code}. It expires in ${expiresHours} hours and can be used once.`,
     html: verificationTemplate({
       displayName: user.displayName || user.username,
-      verifyUrl,
+      code,
       expiresHours,
     }),
   });

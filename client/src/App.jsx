@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
-import { RedirectIfAuth, RequireAuth } from "./components/RouteGuards";
+import { RedirectIfAuth, RequireAuth, RequireAdmin } from "./components/RouteGuards";
 import AppLayout from "./layouts/AppLayout";
 import HomeLayout from "./layouts/HomeLayout";
 import ServerLayout from "./layouts/ServerLayout";
@@ -16,6 +16,7 @@ import ServerIndex from "./pages/ServerIndex";
 import ChannelPage from "./pages/ChannelPage";
 import IdePage from "./pages/IdePage";
 import StudyPage from "./pages/StudyPage";
+import AdminPage from "./pages/AdminPage";
 
 const App = () => (
   <Routes>
@@ -51,6 +52,16 @@ const App = () => (
         <RequireAuth>
           <InvitePage />
         </RequireAuth>
+      }
+    />
+
+    {/* Platform admin console: separate entry, admin role only */}
+    <Route
+      path="/admin"
+      element={
+        <RequireAdmin>
+          <AdminPage />
+        </RequireAdmin>
       }
     />
 

@@ -15,6 +15,16 @@ export const RequireAuth = ({ children }) => {
 export const RedirectIfAuth = ({ children }) => {
   const { user, booting } = useAuth();
   if (booting) return <LoadingScreen />;
-  if (user) return <Navigate to="/app" replace />;
+  if (user) return <Navigate to={user.role === "admin" ? "/admin" : "/app"} replace />;
+  return children;
+};
+
+/** Platform-admin gate: signed in AND role === "admin". */
+export const RequireAdmin = ({ children }) => {
+  const { user, booting } = useAuth();
+  const location = useLocation();
+  if (booting) return <LoadingScreen label="Signing you in…" />;
+  if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
+  if (user.role !== "admin") return <Navigate to="/app" replace />;
   return children;
 };

@@ -7,7 +7,7 @@ import * as groqService from "./groq.service.js";
 const MESSAGE_LIMIT = 50;
 
 const SUMMARY_SYSTEM_PROMPT = `
-You are CodeCord's chat summarization assistant.
+You are Communo's chat summarization assistant.
 
 You will be given a chronological transcript of a text channel, one message
 per line in the form "name: message".

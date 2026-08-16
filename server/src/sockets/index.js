@@ -17,6 +17,7 @@ import { attachmentSchema, pollSchema } from "../validations/message.validation.
 import { safe } from "./ack.js";
 import { registerVoiceHandlers } from "./voice.js";
 import { registerWorkspaceHandlers } from "./workspace.js";
+import { registerRunnerHandlers } from "./runner.js";
 import {
   registerPresenceHandlers,
   handlePresenceConnect,
@@ -232,6 +233,7 @@ export const initSocket = (httpServer) => {
     registerHandlers(io, socket);
     registerVoiceHandlers(io, socket);
     registerWorkspaceHandlers(io, socket);
+    registerRunnerHandlers(io, socket);
     registerPresenceHandlers(io, socket);
     // Announce online (first device only) after handlers are in place
     handlePresenceConnect(socket).catch((err) =>

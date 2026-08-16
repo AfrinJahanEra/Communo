@@ -30,6 +30,8 @@ const Register = () => {
       next.username = "Only letters, numbers, dots and underscores";
     }
     if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) next.email = "Enter a valid email address";
+    else if (!form.email.trim().toLowerCase().endsWith("@iut-dhaka.edu"))
+      next.email = "Only @iut-dhaka.edu emails can register";
     if (form.password.length < 8) {
       next.password = "At least 8 characters";
     } else if (!/[a-zA-Z]/.test(form.password) || !/[0-9]/.test(form.password)) {
@@ -53,9 +55,9 @@ const Register = () => {
         password: form.password,
       });
 
-      // No session is issued until the email is confirmed
+      // No session is issued until the email is confirmed with the 6-digit code
       if (data.requiresVerification) {
-        navigate("/check-email", { state: { email }, replace: true });
+        navigate("/verify-email", { state: { email }, replace: true });
       } else {
         navigate("/app", { replace: true });
       }
@@ -86,7 +88,7 @@ const Register = () => {
         </div>
         <div className="card p-8">
           <h1 className="text-xl font-bold text-ink-900">Create your account</h1>
-          <p className="mt-1 text-sm text-ink-500">Join your batch on CodeCord — it takes a minute.</p>
+          <p className="mt-1 text-sm text-ink-500">Join your batch on Communo — it takes a minute.</p>
 
           {serverError && (
             <div className="mt-4 rounded-xl border border-status-dnd/30 bg-status-dnd/10 px-3.5 py-2.5 text-sm text-status-dnd">
@@ -104,7 +106,7 @@ const Register = () => {
                 error={errors.username}
               />
             </Field>
-            <Field label="Email" error={errors.email}>
+            <Field label="Email" error={errors.email} hint="Use your @iut-dhaka.edu address">
               <Input
                 type="email"
                 autoComplete="email"

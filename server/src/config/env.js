@@ -16,6 +16,10 @@ const envSchema = z.object({
   MONGO_URI: z.string().min(1, "MONGO_URI is required"),
   CLIENT_URL: z.string().default("http://localhost:5173"),
 
+  // Public base URL of this API, used to build URLs for locally stored
+  // uploads when Cloudinary is unavailable.
+  PUBLIC_URL: z.string().default("http://localhost:5000"),
+
   JWT_ACCESS_SECRET: z.string().min(32, "JWT_ACCESS_SECRET must be at least 32 characters"),
   JWT_REFRESH_SECRET: z.string().min(32, "JWT_REFRESH_SECRET must be at least 32 characters"),
   JWT_ACCESS_EXPIRES: z.string().default("15m"),
@@ -38,15 +42,31 @@ const envSchema = z.object({
   SMTP_PORT: z.coerce.number().default(587),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
-  MAIL_FROM: z.string().default("CodeCord <no-reply@codecord.local>"),
+  MAIL_FROM: z.string().default("Communo <no-reply@communo.local>"),
   EMAIL_VERIFICATION_EXPIRES_HOURS: z.coerce.number().default(24),
 
   // Set to "false" to let unverified users log in (useful while testing).
   REQUIRE_EMAIL_VERIFICATION: booleanString("true"),
 
+  // Registration/login is restricted to these email domains (comma-separated,
+  // leading "@" optional). Leave empty to allow any email.
+  ALLOWED_EMAIL_DOMAINS: z
+    .string()
+    .default("iut-dhaka.edu")
+    .transform((value) =>
+      value
+        .split(",")
+        .map((domain) => domain.trim().toLowerCase().replace(/^@/, ""))
+        .filter(Boolean)
+    ),
+
   // Google Sign-In: the OAuth *client ID* only. The client secret is not
   // needed because the browser sends us an ID token we verify by signature.
   GOOGLE_CLIENT_ID: z.string().optional(),
+
+  // Platform admin: separate email + secret-key login, no email verification.
+  ADMIN_EMAIL: z.string().trim().toLowerCase().default("admin@gmail.com"),
+  ADMIN_SECRET_KEY: z.string().min(3, "ADMIN_SECRET_KEY must be at least 3 characters").default("ad123"),
 });
 
 const parsed = envSchema.safeParse(process.env);

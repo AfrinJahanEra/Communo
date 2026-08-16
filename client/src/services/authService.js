@@ -13,9 +13,16 @@ export const login = async (payload) => {
   return data;
 };
 
-/** Confirms the emailed link; the server logs the user in on success. */
-export const verifyEmail = async (token) => {
-  const { data } = await api.post("/auth/verify-email", { token });
+/** Separate admin entry: email + secret key, no email verification. */
+export const adminLogin = async (payload) => {
+  const { data } = await api.post("/auth/admin-login", payload);
+  setAccessToken(data.accessToken);
+  return data;
+};
+
+/** Submits the emailed 6-digit code; the server logs the user in on success. */
+export const verifyEmail = async ({ email, code }) => {
+  const { data } = await api.post("/auth/verify-email", { email, code });
   setAccessToken(data.accessToken);
   return data;
 };
@@ -25,7 +32,7 @@ export const resendVerification = async (email) => {
   return data;
 };
 
-/** Exchanges a Google ID token for a CodeCord session. */
+/** Exchanges a Google ID token for a Communo session. */
 export const googleLogin = async (credential) => {
   const { data } = await api.post("/auth/google", { credential });
   setAccessToken(data.accessToken);
