@@ -2,6 +2,7 @@ import { Router } from "express";
 import validate from "../middleware/validate.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireDmAccess, requireDmMessageAccess } from "../middleware/dmAuth.js";
+import { aiLimiter } from "../middleware/rateLimiter.js";
 import {
   openDmSchema,
   dmIdParamSchema,
@@ -21,6 +22,7 @@ import {
   reactDmMessage,
   markDmRead,
 } from "../controllers/dm.controller.js";
+import { summarizeDm } from "../controllers/summary.controller.js";
 
 const router = Router();
 
@@ -66,6 +68,13 @@ router.post(
   validate({ params: dmIdParamSchema }),
   requireDmAccess,
   markDmRead
+);
+router.post(
+  "/:dmId/summarize",
+  validate({ params: dmIdParamSchema }),
+  requireDmAccess,
+  aiLimiter,
+  summarizeDm
 );
 
 export default router;
