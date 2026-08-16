@@ -27,6 +27,7 @@ import { useSocketEvent } from "../hooks/useSocket";
 import { useToast } from "../hooks/useToast";
 import { useWorkspace } from "../hooks/useWorkspace";
 import { apiMessage } from "../lib/api";
+import { emitAck, getSocket } from "../lib/socket";
 import { cn, idOf, saveBlob } from "../lib/utils";
 import * as workspaceService from "../services/workspaceService";
 
@@ -61,12 +62,14 @@ const IdePage = () => {
   const [cursor, setCursor] = useState(null);
   const [runLangOverride, setRunLangOverride] = useState(null);
 
-  // Execution console
+  // Execution console (VS Code-style interactive terminal)
   const [consoleOpen, setConsoleOpen] = useState(true);
-  const [stdin, setStdin] = useState("");
+  const [lines, setLines] = useState([]);
+  const [queued, setQueued] = useState([]);
   const [running, setRunning] = useState(false);
-  const [result, setResult] = useState(null);
+  const [endInfo, setEndInfo] = useState(null);
   const [execError, setExecError] = useState("");
+  const runIdRef = useRef(null);
 
   const [saving, setSaving] = useState(false);
   const [typers, setTypers] = useState({}); // userId -> username
@@ -100,6 +103,31 @@ const IdePage = () => {
     [activeFileId]
   );
 
+  // ---- interactive run streaming ----
+  const pushLine = useCallback((line) => {
+    setLines((prev) => (prev.length > 2000 ? [...prev.slice(-1500), line] : [...prev, line]));
+  }, []);
+
+  useSocketEvent(
+    "run:output",
+    ({ runId, stream, data }) => {
+      if (runId !== runIdRef.current) return;
+      pushLine({ stream, text: data });
+    },
+    [pushLine]
+  );
+
+  useSocketEvent(
+    "run:end",
+    (info) => {
+      if (info?.runId !== runIdRef.current) return;
+      runIdRef.current = null;
+      setRunning(false);
+      setEndInfo(info);
+    },
+    []
+  );
+
   // ---- toolbar actions ----
   const fileLanguage = openDoc?.file.language || "plaintext";
   const executable = Object.entries(ws.languages).filter(([, meta]) => meta.jdoodle);
@@ -107,24 +135,53 @@ const IdePage = () => {
   const runLang = runLangOverride || (canRunFileLang ? fileLanguage : executable[0]?.[0]);
 
   const runCode = async () => {
-    if (!openDoc || !runLang) return;
+    if (!openDoc || !runLang || running) return;
     setRunning(true);
-    setResult(null);
+    setEndInfo(null);
     setExecError("");
     setConsoleOpen(true);
-    try {
-      // Same language → run the server-side live doc; otherwise ship the
-      // current buffer with the chosen language.
-      const payload =
-        runLang === fileLanguage
-          ? { fileId: activeFileId, stdin }
-          : { source: editorApiRef.current?.getValue() ?? "", language: runLang, stdin };
-      setResult(await workspaceService.execute(serverId, payload));
-    } catch (err) {
-      setExecError(apiMessage(err, "Execution failed"));
-    } finally {
+
+    const runId = `run-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    runIdRef.current = runId;
+    const payload =
+      runLang === fileLanguage
+        ? { serverId, fileId: activeFileId, queuedStdin: queued }
+        : {
+            serverId,
+            source: editorApiRef.current?.getValue() ?? "",
+            language: runLang,
+            queuedStdin: queued,
+          };
+
+    const ack = await emitAck("run:start", { runId, ...payload });
+    if (!ack.success) {
+      runIdRef.current = null;
       setRunning(false);
+      setExecError(ack.message || "Execution failed");
+      return;
     }
+    setQueued([]);
+  };
+
+  /** Terminal line: streamed to the running program, or queued pre-run. */
+  const sendLine = (line) => {
+    pushLine({ stream: "stdin", text: line });
+    if (runIdRef.current) {
+      getSocket()?.emit("run:stdin", { runId: runIdRef.current, data: line });
+    } else {
+      setQueued((q) => [...q, line]);
+    }
+  };
+
+  const stopRun = () => {
+    if (runIdRef.current) getSocket()?.emit("run:stop", { runId: runIdRef.current });
+  };
+
+  const clearConsole = () => {
+    setLines([]);
+    setQueued([]);
+    setEndInfo(null);
+    setExecError("");
   };
 
   const downloadFile = async () => {
@@ -361,11 +418,13 @@ const IdePage = () => {
           <ConsolePanel
             open={consoleOpen}
             onToggle={() => setConsoleOpen((o) => !o)}
-            stdin={stdin}
-            onStdinChange={setStdin}
+            lines={lines}
             running={running}
-            result={result}
+            endInfo={endInfo}
             error={execError}
+            onLine={sendLine}
+            onStop={stopRun}
+            onClear={clearConsole}
           />
         </main>
       </div>

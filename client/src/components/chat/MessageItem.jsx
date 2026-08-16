@@ -127,7 +127,6 @@ export const MessageItem = ({
   const [previewImage, setPreviewImage] = useState(null);
   const author = typeof message.authorId === "object" ? message.authorId : null;
   const attachments = Array.isArray(message.attachments) ? message.attachments : [];
-  // Polls are the one message type anyone can create/edit/delete, not just the author.
   const isPoll = Boolean(message.poll);
 
   const startEdit = () => {
@@ -291,14 +290,14 @@ export const MessageItem = ({
               </div>
             )}
           </div>
-          {(isPoll || isMine) && (
+          {isMine && (
             <ActionButton
               icon={Pencil}
               label="Edit"
               onClick={() => (isPoll ? onEditPoll(message) : startEdit())}
             />
           )}
-          {(isPoll || isMine || canManage) && (
+          {(isMine || canManage) && (
             <ActionButton icon={Trash2} label="Delete" danger onClick={() => onDelete(message)} />
           )}
         </div>

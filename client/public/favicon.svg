@@ -1,4 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="16" fill="#8f7ab8"/>
-  <path d="M26 20l-8 12 8 12M38 20l8 12-8 12" fill="none" stroke="#faf6ee" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#a795cc"/>
+      <stop offset="0.55" stop-color="#8f7ab8"/>
+      <stop offset="1" stop-color="#614f83"/>
+    </linearGradient>
+    <linearGradient id="bubble" x1="18" y1="22" x2="48" y2="46" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8f7ab8"/>
+      <stop offset="1" stop-color="#614f83"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#tile)"/>
+  <path d="M32 7 55.5 20.5v27L32 61 8.5 47.5v-27L32 7Z" fill="#ffffff"/>
+  <path d="M23.6 24.4h16.8c2.4 0 4.4 2 4.4 4.4v8.4c0 2.4-2 4.4-4.4 4.4H31l-7.8 6.2v-6.2h-1.6c-2.4 0-4.4-2-4.4-4.4v-8.4c0-2.4 2-4.4 4.4-4.4Z" fill="url(#bubble)" transform="translate(1 -1.2)"/>
+  <circle cx="26" cy="31.6" r="2.4" fill="#ffffff"/>
+  <circle cx="33" cy="31.6" r="2.4" fill="#ffffff"/>
+  <circle cx="40" cy="31.6" r="2.4" fill="#ffffff"/>
 </svg>

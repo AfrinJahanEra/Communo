@@ -33,6 +33,12 @@ export const AuthProvider = ({ children }) => {
     return data.user;
   }, []);
 
+  const loginAsAdmin = useCallback(async (payload) => {
+    const data = await authService.adminLogin(payload);
+    setUser(data.user);
+    return data.user;
+  }, []);
+
   /**
    * Returns the full response rather than the user: when verification is
    * required no session exists yet, so the caller redirects to /check-email
@@ -44,8 +50,8 @@ export const AuthProvider = ({ children }) => {
     return data;
   }, []);
 
-  const verifyEmail = useCallback(async (token) => {
-    const data = await authService.verifyEmail(token);
+  const verifyEmail = useCallback(async (payload) => {
+    const data = await authService.verifyEmail(payload);
     setUser(data.user);
     return data.user;
   }, []);
@@ -67,8 +73,18 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const value = useMemo(
-    () => ({ user, booting, login, register, verifyEmail, loginWithGoogle, logout, setUser }),
-    [user, booting, login, register, verifyEmail, loginWithGoogle, logout]
+    () => ({
+      user,
+      booting,
+      login,
+      loginAsAdmin,
+      register,
+      verifyEmail,
+      loginWithGoogle,
+      logout,
+      setUser,
+    }),
+    [user, booting, login, loginAsAdmin, register, verifyEmail, loginWithGoogle, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

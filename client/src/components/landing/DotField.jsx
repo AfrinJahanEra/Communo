@@ -345,7 +345,7 @@ const DotField = () => {
       return cleanup;
     }
 
-    const clock = new THREE.Clock();
+    const timer = new THREE.Timer();
     const ring = { x: 0, y: 0 };
     const minSpan = Math.min(width, height);
     const ringRadiusBase = minSpan * 0.22;
@@ -353,7 +353,8 @@ const DotField = () => {
 
     let frameId;
     const animate = () => {
-      const t = clock.getElapsedTime();
+      timer.update();
+      const t = timer.getElapsed();
 
       // Ambient drift so the ring is always alive, even before the visitor
       // moves the mouse — then eases toward the cursor while hovering.

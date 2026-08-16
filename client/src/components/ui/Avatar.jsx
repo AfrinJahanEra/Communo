@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { cn, initials, displayNameOf } from "../../lib/utils";
 import { usePresence } from "../../hooks/usePresence";
 
@@ -29,19 +30,29 @@ export const Avatar = ({ user, size = "md", showStatus = false, className }) => 
   const presence = usePresence();
   const status = showStatus && user?._id ? presence?.statusOf(user._id) : null;
   const name = displayNameOf(user);
+  const avatarUrl = user?.avatar || "";
+
+  // Never show a broken-image glyph: fall back to initials on load error
+  // (also covers stale/cached URLs); a new URL retries automatically.
+  const [failedUrl, setFailedUrl] = useState(null);
+  const failed = failedUrl !== null && failedUrl === avatarUrl;
 
   return (
     <span className={cn("relative inline-block shrink-0", className)}>
-      {user?.avatar ? (
+      {avatarUrl && !failed ? (
         <img
-          src={user.avatar}
+          src={avatarUrl}
           alt={name}
-          className={cn("rounded-full object-cover", SIZES[size])}
+          onError={() => setFailedUrl(avatarUrl)}
+          className={cn(
+            "rounded-full bg-lav-100 object-cover ring-1 ring-ink-900/10",
+            SIZES[size]
+          )}
         />
       ) : (
         <span
           className={cn(
-            "flex items-center justify-center rounded-full bg-lav-200 font-semibold text-lav-800",
+            "flex items-center justify-center rounded-full bg-lav-200 font-semibold text-lav-800 ring-1 ring-ink-900/10",
             SIZES[size]
           )}
         >

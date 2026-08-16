@@ -122,7 +122,7 @@ const DiscoverPage = () => {
             Find your study community
           </h1>
           <p className="mt-1 max-w-lg text-sm text-ink-500">
-            Browse public servers created by fellow CSE students — algorithms, web dev,
+            Browse public servers created by fellow IUT students — study groups, clubs,
             interview prep and more.
           </p>
 
