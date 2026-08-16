@@ -1,27 +1,31 @@
-import { Link, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Compass, House, Plus } from "lucide-react";
 import { cn, initials } from "../../lib/utils";
 
-const RailButton = ({ to, active, label, className, children }) => (
-  <Link
-    to={to}
-    title={label}
-    className={cn(
-      "group relative flex h-11 w-11 items-center justify-center rounded-2xl transition-all duration-150",
-      active ? "rounded-xl bg-lav-500 text-white shadow-md" : "bg-cream-50 text-lav-700 hover:rounded-xl hover:bg-lav-500 hover:text-white",
-      className
-    )}
-  >
-    {/* active pill */}
-    <span
+const RailButton = ({ to, active, label, className, children }) => {
+  const navigate = useNavigate();
+  return (
+    <button
+      type="button"
+      onClick={() => navigate(to)}
+      title={label}
       className={cn(
-        "absolute -left-2.5 w-1 rounded-r-full bg-lav-700 transition-all duration-150",
-        active ? "h-7" : "h-0 group-hover:h-4"
+        "group relative flex h-11 w-11 items-center justify-center rounded-2xl transition-all duration-150",
+        active ? "rounded-xl bg-lav-500 text-white shadow-md" : "bg-cream-50 text-lav-700 hover:rounded-xl hover:bg-lav-500 hover:text-white",
+        className
       )}
-    />
-    {children}
-  </Link>
-);
+    >
+      {/* active pill */}
+      <span
+        className={cn(
+          "absolute -left-2.5 w-1 rounded-r-full bg-lav-700 transition-all duration-150",
+          active ? "h-7" : "h-0 group-hover:h-4"
+        )}
+      />
+      {children}
+    </button>
+  );
+};
 
 /** Far-left vertical navigation: home, joined servers, create, discover. */
 export const ServerRail = ({ servers, onCreate, notificationCounts = {} }) => {
