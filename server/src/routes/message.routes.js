@@ -34,7 +34,7 @@ router.post("/:messageId/pin", pinMessage);
 router.delete("/:messageId/pin", unpinMessage);
 router.post("/:messageId/reactions", validate({ body: toggleReactionSchema }), toggleMessageReaction);
 
-// Polls (any channel member has full access — see message.service.js)
+// Polls: any member can vote; only the author can edit (enforced in the service)
 router.post("/:messageId/poll/vote", validate({ body: pollVoteSchema }), voteOnPoll);
 router.patch("/:messageId/poll", validate({ body: editPollSchema }), editPoll);
 

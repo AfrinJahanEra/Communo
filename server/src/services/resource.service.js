@@ -1,7 +1,8 @@
 import { cloudinary } from "../config/cloudinary.js";
 import ApiError from "../utils/ApiError.js";
 import logger from "../utils/logger.js";
-import { uploadBuffer, slugify } from "../utils/cloudinaryUpload.js";
+import { slugify } from "../utils/cloudinaryUpload.js";
+import { storeBuffer, destroyStored, isLocalPublicId } from "../utils/storage.util.js";
 import { hasPermission, PERMISSIONS } from "../constants/permissions.js";
 import { resolveMemberPermissions } from "../middleware/serverAuth.js";
 import { extensionOf } from "../middleware/uploadResource.js";
@@ -28,16 +29,18 @@ export const uploadResource = async (server, uploader, file, { title, descriptio
   if (!kind) throw ApiError.badRequest("Unsupported file type");
 
   const isImage = kind === RESOURCE_KINDS.IMAGE;
-  const publicId = `${slugify(file.originalname)}-${Date.now()}${isImage ? "" : extension}`;
+  const publicId = `${slugify(file.originalname)}-${Date.now()}`;
 
-  // Cloud upload and text extraction run in parallel off the same buffer
+  // Storage (Cloudinary with local fallback) and text extraction run in
+  // parallel off the same buffer
   const [uploaded, extracted] = await Promise.all([
-    uploadBuffer(file.buffer, {
+    storeBuffer(file.buffer, {
       folder: `codecord/resources/${server._id}`,
-      resource_type: isImage ? "image" : "raw",
-      public_id: publicId,
+      resourceType: isImage ? "image" : "raw",
+      publicId,
+      extension,
     }).catch((err) => {
-      logger.error(`resource upload to Cloudinary failed: ${err.message}`);
+      logger.error(`resource storage failed: ${err.message}`);
       throw ApiError.internal("File storage failed, please try again");
     }),
     resourceTextService.extractText({ buffer: file.buffer, extension }),
@@ -53,8 +56,8 @@ export const uploadResource = async (server, uploader, file, { title, descriptio
     originalName: file.originalname,
     mimeType: file.mimetype,
     sizeBytes: file.size,
-    fileUrl: uploaded.secure_url,
-    publicId: uploaded.public_id,
+    fileUrl: uploaded.url,
+    publicId: uploaded.publicId,
     resourceType: isImage ? "image" : "raw",
     textStatus: extracted.textStatus,
     textContent: extracted.textContent,
@@ -100,9 +103,7 @@ export const deleteResource = async (server, membership, userId, resourceId) => 
   await assertCanManage(server, membership, userId, resource);
   await resourceRepository.deleteById(resource._id);
   // Best-effort: the DB record is the source of truth for the app
-  cloudinary.uploader
-    .destroy(resource.publicId, { resource_type: resource.resourceType })
-    .catch((err) => logger.warn(`Cloudinary cleanup failed for ${resource.publicId}: ${err.message}`));
+  destroyStored(resource.publicId, resource.resourceType);
   emitToRoom(serverRoom(server._id), "resource:deleted", {
     resourceId: resource._id,
     serverId: server._id,
@@ -112,6 +113,10 @@ export const deleteResource = async (server, membership, userId, resourceId) => 
 /** Attachment URL so browsers download instead of rendering inline. */
 export const getDownloadUrl = async (server, resourceId) => {
   const resource = await getResourceInServer(server, resourceId);
+  // Locally stored files are already served straight from express.static
+  if (isLocalPublicId(resource.publicId)) {
+    return { resource, url: resource.fileUrl };
+  }
   const url = cloudinary.url(resource.publicId, {
     resource_type: resource.resourceType,
     secure: true,

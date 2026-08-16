@@ -10,11 +10,12 @@ import friendRoutes from "./friend.routes.js";
 import dmRoutes from "./dm.routes.js";
 import aiRoutes from "./ai.routes.js";
 import attachmentRoutes from "./attachment.routes.js";
+import adminRoutes from "./admin.routes.js";
 
 const router = Router();
 
 router.get("/health", (req, res) => {
-  res.json({ success: true, message: "CodeCord API is running" });
+  res.json({ success: true, message: "Communo API is running" });
 });
 
 router.use("/auth", authRoutes);
@@ -28,5 +29,6 @@ router.use("/friends", friendRoutes);
 router.use("/dms", dmRoutes);
 router.use("/ai", aiRoutes);
 router.use("/attachments", attachmentRoutes);
+router.use("/admin", adminRoutes);
 
 export default router;

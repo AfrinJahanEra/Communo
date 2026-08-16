@@ -42,14 +42,14 @@ export const incrementUnreadCount = (dmId, userId) =>
   DmChannel.findByIdAndUpdate(
     dmId,
     { $inc: { [`unreadCounts.${userId.toString()}`]: 1 } },
-    { new: true }
+    { returnDocument: "after" }
   ).populate("participantIds", USER_FIELDS);
 
 export const markReadForUser = (dmId, userId) =>
   DmChannel.findByIdAndUpdate(
     dmId,
     { $set: { [`unreadCounts.${userId.toString()}`]: 0 } },
-    { new: true }
+    { returnDocument: "after" }
   ).populate("participantIds", USER_FIELDS);
 
 // ---------- DM messages ----------

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import validate from "../middleware/validate.js";
 import { requireAuth } from "../middleware/auth.js";
-import { upload } from "../config/cloudinary.js";
+import { uploadAvatar } from "../middleware/uploadAvatar.js";
 import {
   updateProfileSchema,
   changePasswordSchema,
@@ -21,7 +21,7 @@ router.use(requireAuth); // every user route requires authentication
 
 router.get("/me", getMe);
 router.patch("/me", validate({ body: updateProfileSchema }), updateMe);
-router.post("/me/avatar", upload.single("avatar"), updateAvatar);
+router.post("/me/avatar", uploadAvatar.single("avatar"), updateAvatar);
 router.patch("/me/password", validate({ body: changePasswordSchema }), changePassword);
 router.get("/:id", validate({ params: userIdParamSchema }), getUserById);
 

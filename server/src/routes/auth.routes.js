@@ -8,10 +8,12 @@ import {
   verifyEmailSchema,
   resendVerificationSchema,
   googleAuthSchema,
+  adminLoginSchema,
 } from "../validations/auth.validation.js";
 import {
   register,
   login,
+  adminLogin,
   verifyEmail,
   resendVerification,
   googleAuth,
@@ -25,6 +27,9 @@ const router = Router();
 
 router.post("/register", authLimiter, validate({ body: registerSchema }), register);
 router.post("/login", authLimiter, validate({ body: loginSchema }), login);
+
+// Separate admin entry: email + secret key only, no email verification.
+router.post("/admin-login", authLimiter, validate({ body: adminLoginSchema }), adminLogin);
 
 // POST, not GET: email scanners and link previewers follow GET links and would
 // silently consume the single-use token before the user clicks it.

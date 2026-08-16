@@ -1,6 +1,5 @@
-import { cloudinary } from "../config/cloudinary.js";
 import ApiError from "../utils/ApiError.js";
-import logger from "../utils/logger.js";
+import { destroyStored } from "../utils/storage.util.js";
 import { CHANNEL_TYPES } from "../constants/channels.js";
 import { PERMISSIONS, hasPermission } from "../constants/permissions.js";
 import * as messageRepository from "../repositories/message.repository.js";
@@ -9,13 +8,9 @@ import * as threadRepository from "../repositories/thread.repository.js";
 import * as serverMemberRepository from "../repositories/serverMember.repository.js";
 import { emitToRoom, emitToUsers, messageRoom } from "../sockets/emitters.js";
 
-/** Best-effort Cloudinary cleanup; the DB record stays the source of truth. */
+/** Best-effort storage cleanup; the DB record stays the source of truth. */
 const cleanupAttachments = (attachments = []) => {
-  attachments.forEach((att) => {
-    cloudinary.uploader
-      .destroy(att.publicId, { resource_type: att.resourceType })
-      .catch((err) => logger.warn(`Cloudinary cleanup failed for ${att.publicId}: ${err.message}`));
-  });
+  attachments.forEach((att) => destroyStored(att.publicId, att.resourceType));
 };
 
 const isAuthor = (message, userId) =>
@@ -182,11 +177,10 @@ export const updateMessage = async (message, userId, { content }) => {
 
 /**
  * Author may delete their own message; MANAGE_MESSAGES may delete any.
- * Polls are the one exception: any channel member has full access to them.
+ * Polls follow the same rule — everyone else can only vote.
  */
 export const deleteMessage = async (message, userId, bitfield) => {
-  const pollOverride = Boolean(message.poll);
-  if (!pollOverride && !isAuthor(message, userId) && !hasPermission(bitfield, PERMISSIONS.MANAGE_MESSAGES)) {
+  if (!isAuthor(message, userId) && !hasPermission(bitfield, PERMISSIONS.MANAGE_MESSAGES)) {
     throw ApiError.forbidden("You do not have permission to delete this message");
   }
   await messageRepository.deleteById(message._id);
@@ -259,9 +253,12 @@ export const voteOnPoll = async (message, userId, { optionId }) => {
   return updated;
 };
 
-/** Anyone can edit a poll's question/options; matching option text keeps its votes. */
-export const editPoll = async (message, { question, options }) => {
+/** Only the poll author may edit it; matching option text keeps its votes. */
+export const editPoll = async (message, userId, { question, options }) => {
   if (!message.poll) throw ApiError.badRequest("This message is not a poll");
+  if (!isAuthor(message, userId)) {
+    throw ApiError.forbidden("Only the poll creator can edit it");
+  }
   const existingVotesByText = new Map(
     (message.poll.options || []).map((option) => [
       option.text,

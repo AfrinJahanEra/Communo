@@ -19,6 +19,9 @@ export const generateRefreshToken = () => crypto.randomBytes(64).toString("hex")
 /** Opaque single-use token for email links (verification, password reset). */
 export const generateOpaqueToken = (bytes = 48) => crypto.randomBytes(bytes).toString("hex");
 
+/** 6-digit one-time code emailed during verification (100000–999999). */
+export const generateVerificationCode = () => String(crypto.randomInt(100000, 1000000));
+
 export const hashToken = (token) => crypto.createHash("sha256").update(token).digest("hex");
 
 export const refreshTokenExpiryDate = () =>

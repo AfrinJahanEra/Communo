@@ -25,7 +25,7 @@ export const register = asyncHandler(async (req, res) => {
   sendCreated(
     res,
     requiresVerification
-      ? "Registration successful. Check your inbox to verify your email."
+      ? "Registration successful. Enter the 6-digit code we emailed you."
       : "Registration successful",
     { user, accessToken: accessToken || null, requiresVerification: Boolean(requiresVerification) }
   );
@@ -38,10 +38,20 @@ export const login = asyncHandler(async (req, res) => {
   sendOk(res, "Login successful", { user, accessToken });
 });
 
+// @route POST /api/v1/auth/admin-login
+export const adminLogin = asyncHandler(async (req, res) => {
+  const { user, accessToken, refreshToken } = await authService.adminLogin(
+    req.body,
+    requestMeta(req)
+  );
+  setAuthCookies(res, accessToken, refreshToken);
+  sendOk(res, "Admin login successful", { user, accessToken });
+});
+
 // @route POST /api/v1/auth/verify-email
 export const verifyEmail = asyncHandler(async (req, res) => {
   const { user, accessToken, refreshToken } = await authService.verifyEmail(
-    req.body.token,
+    { email: req.body.email, code: req.body.code },
     requestMeta(req)
   );
   setAuthCookies(res, accessToken, refreshToken);
@@ -52,7 +62,7 @@ export const verifyEmail = asyncHandler(async (req, res) => {
 export const resendVerification = asyncHandler(async (req, res) => {
   await authService.resendVerification(req.body.email);
   // Deliberately identical whether or not the account exists
-  sendOk(res, "If that account exists and is unverified, a new link has been sent.");
+  sendOk(res, "If that account exists and is unverified, a new code has been sent.");
 });
 
 // @route POST /api/v1/auth/google

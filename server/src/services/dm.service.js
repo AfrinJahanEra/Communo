@@ -1,18 +1,13 @@
-import { cloudinary } from "../config/cloudinary.js";
 import ApiError from "../utils/ApiError.js";
-import logger from "../utils/logger.js";
+import { destroyStored } from "../utils/storage.util.js";
 import * as dmRepository from "../repositories/dm.repository.js";
 import * as friendRepository from "../repositories/friend.repository.js";
 import * as userRepository from "../repositories/user.repository.js";
 import { emitToUsers } from "../sockets/emitters.js";
 
-/** Best-effort Cloudinary cleanup; the DB record stays the source of truth. */
+/** Best-effort storage cleanup; the DB record stays the source of truth. */
 const cleanupAttachments = (attachments = []) => {
-  attachments.forEach((att) => {
-    cloudinary.uploader
-      .destroy(att.publicId, { resource_type: att.resourceType })
-      .catch((err) => logger.warn(`Cloudinary cleanup failed for ${att.publicId}: ${err.message}`));
-  });
+  attachments.forEach((att) => destroyStored(att.publicId, att.resourceType));
 };
 
 /** participantIds come back populated — normalize to plain id strings. */
