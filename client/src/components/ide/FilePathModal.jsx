@@ -4,10 +4,20 @@ import { Button } from "../ui/Button";
 import { Field, Input } from "../ui/Input";
 
 /**
- * Shared create/rename dialog for workspace files. Paths encode folders:
- * "src/utils/math.py". The backend validates segments + duplicates.
+ * Shared create/rename dialog for workspace files and folders. Paths encode
+ * folders: "src/utils/math.py". The backend validates segments + duplicates.
  */
-export const FilePathModal = ({ open, onClose, title, initialPath = "", submitLabel, onSubmit }) => {
+export const FilePathModal = ({
+  open,
+  onClose,
+  title,
+  initialPath = "",
+  submitLabel,
+  fieldLabel = "File path",
+  hint = 'Use "/" for folders, e.g. src/main.py — the extension picks the language.',
+  placeholder = "src/main.py",
+  onSubmit,
+}) => {
   const [path, setPath] = useState(initialPath);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -41,15 +51,11 @@ export const FilePathModal = ({ open, onClose, title, initialPath = "", submitLa
   return (
     <Modal open={open} onClose={onClose} title={title} size="sm">
       <form onSubmit={submit} className="space-y-4">
-        <Field
-          label="File path"
-          error={error}
-          hint='Use "/" for folders, e.g. src/main.py — the extension picks the language.'
-        >
+        <Field label={fieldLabel} error={error} hint={hint}>
           <Input
             value={path}
             onChange={(e) => setPath(e.target.value)}
-            placeholder="src/main.py"
+            placeholder={placeholder}
             autoFocus
             maxLength={200}
           />

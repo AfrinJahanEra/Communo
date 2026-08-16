@@ -23,11 +23,44 @@ export const countByWorkspace = (workspaceId) =>
 export const findByPath = (workspaceId, path) =>
   WorkspaceFile.findOne({ workspaceId, path });
 
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * A "folder" at `prefix` is the item at that exact path plus everything
+ * nested under it — used to cascade rename/delete across a whole subtree,
+ * whether or not the folder itself has a persisted marker document.
+ */
+export const findByPathPrefix = (workspaceId, prefix) =>
+  WorkspaceFile.find({
+    workspaceId,
+    $or: [{ path: prefix }, { path: new RegExp(`^${escapeRegex(prefix)}/`) }],
+  }).select("-content");
+
 export const updateById = (id, update) =>
   WorkspaceFile.findByIdAndUpdate(id, update, {
     returnDocument: "after",
     runValidators: true,
   });
+
+/** Bulk path rewrite for a folder rename (all affected docs in one round trip). */
+export const bulkUpdatePaths = async (updates) => {
+  if (!updates.length) return [];
+  await WorkspaceFile.bulkWrite(
+    updates.map(({ id, path, language, updatedBy }) => ({
+      updateOne: {
+        filter: { _id: id },
+        update: { $set: { path, language, updatedBy } },
+      },
+    }))
+  );
+  return WorkspaceFile.find({ _id: { $in: updates.map((u) => u.id) } }).select("-content");
+};
+
+export const deleteManyByIds = async (ids) => {
+  if (!ids.length) return;
+  await WorkspaceFile.deleteMany({ _id: { $in: ids } });
+  await FileSnapshot.deleteMany({ fileId: { $in: ids } });
+};
 
 /** Auto-save flush from the in-memory document store. */
 export const updateContent = (id, { content, version, updatedBy }) =>

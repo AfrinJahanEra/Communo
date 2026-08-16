@@ -24,6 +24,7 @@ const toMeta = (file) => ({
   _id: file._id,
   workspaceId: file.workspaceId,
   path: file.path,
+  type: file.type || "file",
   language: file.language,
   version: file.version,
   sizeBytes: file.sizeBytes,
@@ -120,6 +121,111 @@ export const deleteFile = async (workspace, fileId) => {
     fileId: file._id,
     path: file.path,
   });
+};
+
+// ---------- folders ----------
+// Most folders are purely virtual (inferred from file paths on the client),
+// so rename/delete operate on a path prefix rather than an id: they cascade
+// over "the item at this path, plus everything nested under it" — which
+// covers an explicit (possibly empty) folder marker and/or any files that
+// merely imply the folder's existence. Every affected doc gets its own
+// file:created/renamed/deleted event, reusing the same events file actions
+// already use, so no new socket wiring is needed on the client.
+
+export const createFolder = async (workspace, userId, { path }) => {
+  const normalized = normalizePath(path);
+  if (!normalized) throw ApiError.badRequest("Folder path is required");
+
+  const count = await workspaceFileRepository.countByWorkspace(workspace._id);
+  if (count >= MAX_FILES_PER_WORKSPACE) {
+    throw ApiError.badRequest(
+      `A workspace cannot exceed ${MAX_FILES_PER_WORKSPACE} files`
+    );
+  }
+  const duplicate = await workspaceFileRepository.findByPath(workspace._id, normalized);
+  if (duplicate) {
+    throw ApiError.conflict(
+      duplicate.type === "folder"
+        ? "A folder with this path already exists"
+        : "A file with this path already exists"
+    );
+  }
+
+  const folder = await workspaceFileRepository.create({
+    workspaceId: workspace._id,
+    serverId: workspace.serverId,
+    path: normalized,
+    type: "folder",
+    createdBy: userId,
+    updatedBy: userId,
+  });
+  emitWorkspaceEvent(workspace, "file:created", { file: toMeta(folder) });
+  return folder;
+};
+
+export const renameFolder = async (workspace, fromPath, toPath, userId) => {
+  const from = normalizePath(fromPath);
+  const to = normalizePath(toPath);
+  if (!from || !to) throw ApiError.badRequest("Folder path is required");
+  if (to === from) return { files: [] };
+  if (to.startsWith(`${from}/`)) {
+    throw ApiError.badRequest("Cannot move a folder inside itself");
+  }
+
+  const subtree = await workspaceFileRepository.findByPathPrefix(workspace._id, from);
+  if (subtree.length === 0) throw ApiError.notFound("Folder not found");
+
+  const subtreeIds = new Set(subtree.map((doc) => doc._id.toString()));
+  const previousPathById = new Map(subtree.map((doc) => [doc._id.toString(), doc.path]));
+
+  const renameOps = subtree.map((doc) => {
+    const newPath = `${to}${doc.path.slice(from.length)}`;
+    return {
+      id: doc._id,
+      path: newPath,
+      language: doc.type === "folder" ? doc.language : languageForPath(newPath),
+      updatedBy: userId,
+    };
+  });
+
+  const allFiles = await workspaceFileRepository.findByWorkspace(workspace._id);
+  const newPathSet = new Set(renameOps.map((op) => op.path));
+  const collision = allFiles.find(
+    (f) => !subtreeIds.has(f._id.toString()) && newPathSet.has(f.path)
+  );
+  if (collision) {
+    throw ApiError.conflict("A file or folder already exists at the destination path");
+  }
+
+  const updated = await workspaceFileRepository.bulkUpdatePaths(renameOps);
+  updated.forEach((file) => {
+    emitWorkspaceEvent(workspace, "file:renamed", {
+      file: toMeta(file),
+      previousPath: previousPathById.get(file._id.toString()),
+    });
+  });
+
+  return { files: updated };
+};
+
+export const deleteFolder = async (workspace, path) => {
+  const normalized = normalizePath(path);
+  if (!normalized) throw ApiError.badRequest("Folder path is required");
+
+  const subtree = await workspaceFileRepository.findByPathPrefix(workspace._id, normalized);
+  if (subtree.length === 0) throw ApiError.notFound("Folder not found");
+
+  subtree.forEach((doc) => {
+    if (doc.type !== "folder") documentStore.drop(doc._id); // evict open files without saving
+  });
+
+  await workspaceFileRepository.deleteManyByIds(subtree.map((doc) => doc._id));
+
+  subtree.forEach((doc) => {
+    emitWorkspaceEvent(workspace, "file:deleted", { fileId: doc._id, path: doc.path });
+  });
+
+  return { deletedCount: subtree.length };
 };
 
 /** Content + version served from the live document when the file is open. */

@@ -5,7 +5,7 @@ import {
   Mic,
   Users,
   Code2,
-  Zap,
+  // Zap,
   ShieldCheck,
   ArrowRight,
 } from "lucide-react";
@@ -70,9 +70,9 @@ const Landing = () => (
 
     {/* Hero */}
     <section className="pointer-events-none relative mx-auto max-w-4xl px-6 pb-16 pt-14 text-center sm:pt-20">
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-lav-300 bg-lav-50 px-3 py-1 text-xs font-semibold text-lav-700">
+      {/* <span className="inline-flex items-center gap-1.5 rounded-full border border-lav-300 bg-lav-50 px-3 py-1 text-xs font-semibold text-lav-700">
         <Zap size={13} /> Built for CSE students
-      </span>
+      </span> */}
       <h1 className="mt-5 text-4xl font-extrabold leading-tight tracking-tight text-ink-900 sm:text-6xl">
         Where your batch
         <span className="text-lav-500"> codes, talks & studies</span> together
@@ -97,7 +97,7 @@ const Landing = () => (
     </section>
 
     <footer className="pointer-events-none relative border-t border-cream-300 py-8 text-center text-xs text-ink-300">
-      CodeCord — a collaborative communication platform for CSE students.
+      CodeCord — a collaborative communication platform for IUT students.
     </footer>
   </div>
 );

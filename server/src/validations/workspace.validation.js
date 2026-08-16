@@ -35,6 +35,20 @@ export const renameFileSchema = z.object({
   path: filePathField,
 });
 
+export const createFolderSchema = z.object({
+  path: filePathField,
+});
+
+/** Folders are identified by path (they may be purely virtual), not an id. */
+export const renameFolderSchema = z.object({
+  from: filePathField,
+  to: filePathField,
+});
+
+export const folderPathQuerySchema = z.object({
+  path: filePathField,
+});
+
 export const executeSchema = z
   .object({
     fileId: objectId("file id").optional(),
