@@ -34,7 +34,7 @@ const envSchema = z.object({
   JDOODLE_CLIENT_ID: z.string().optional(),
   JDOODLE_CLIENT_SECRET: z.string().optional(),
   GROQ_API_KEY: z.string().optional(),
-  GROQ_MODEL: z.string().default("llama-3.3-70b-versatile"),
+  GROQ_MODEL: z.string().default("openai/gpt-oss-20b"),
 
   // SMTP — when unset, verification links are logged to the console instead
   // of emailed, so local development works without a mail account.
