@@ -1,1 +1,0 @@
-No build script specific to this module; it is loaded as part of the Express app via `routes/server.routes.js` and `routes/channel.routes.js`. Server icon upload requires an image buffer supplied by `uploadServerIcon.single('icon')` before reaching the controller.

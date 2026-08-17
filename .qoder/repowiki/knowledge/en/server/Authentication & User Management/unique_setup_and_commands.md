@@ -1,1 +1,0 @@
-Admin sign-in uses a separate `/api/v1/auth/admin-login` endpoint that authenticates against `ADMIN_EMAIL` + `ADMIN_SECRET_KEY` from `.env` rather than a user password, and auto-creates or promotes a shared admin account when missing.

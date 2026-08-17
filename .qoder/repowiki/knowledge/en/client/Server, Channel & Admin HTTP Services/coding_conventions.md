@@ -1,4 +1,0 @@
-- Each exported function is an `async` wrapper around a single `api.get/post/patch/delete` call that destructures `{ data }` and returns either the whole response or a top-level property like `data.server` / `data.channel`.
-- Query parameters are passed as a second `{ params }` option on GET requests rather than string-interpolated into the URL path.
-- Resource-scoped routes are grouped by resource prefix (`/servers/{id}`, `/channels/{id}`, `/admin`) with sub-resources appended as path segments (e.g. `/members`, `/roles`, `/invites`, `/threads`, `/messages`).
-- Optional query objects default to `{}` so callers can omit pagination/search filters without error.

@@ -1,1 +1,0 @@
-Express Router with Zod schemas for input validation, Mongoose ODM for MongoDB persistence, crypto-based SHA-256 hashing and timing-safe comparisons for tokens, and Google ID token verification via `../config/google.js`.

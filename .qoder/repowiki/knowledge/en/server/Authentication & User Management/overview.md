@@ -1,1 +1,0 @@
-Implements user registration, login (local and Google), email verification, session refresh/logout, and profile/avatar/password management via Express routes backed by services and repositories.

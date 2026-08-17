@@ -1,1 +1,0 @@
-Express Router with custom middleware pipeline; Mongoose ODM for MongoDB; Zod-like schema validation via `validate` middleware; optional file uploads handled by `uploadServerIcon` middleware; real-time updates pushed through `sockets/emitters` and live voice state accessed via `sockets/voiceState`.

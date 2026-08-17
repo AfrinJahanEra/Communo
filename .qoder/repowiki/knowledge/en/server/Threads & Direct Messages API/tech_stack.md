@@ -1,1 +1,0 @@
-Express Router with Zod schemas for request validation, Mongoose models for MongoDB persistence, and a custom `withTransaction` wrapper for atomic multi-step writes (e.g., deleting all thread messages before the thread). Real-time updates are pushed through `sockets/emitters`.

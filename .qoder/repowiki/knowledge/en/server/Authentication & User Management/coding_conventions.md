@@ -1,6 +1,0 @@
-- Controllers are thin async wrappers around services, using the shared `asyncHandler` utility and responding through `sendOk`/`sendCreated` helpers rather than calling `res.json` directly.
-- Input validation is declarative via per-endpoint Zod schemas exported from `validations/*.js` and applied through the `validate` middleware at route definition time.
-- Sensitive secrets (refresh tokens, verification codes) are never stored in plaintext — they are hashed with `hashToken` before persistence and compared with constant-time `hashesMatch`.
-- Repository functions expose a flat set of CRUD/query helpers that wrap Mongoose model calls without leaking query options like `select('+password')` outside the repository layer.
-- Session state is managed via HTTP-only cookies using `setAuthCookies`/`clearAuthCookies` from `token.util.js`, with refresh tokens grouped into families so token reuse triggers full-family revocation.
-- Error handling consistently throws typed `ApiError` instances (unauthorized, forbidden, conflict, badRequest, notFound) instead of returning status codes, letting global error middleware serialize them.

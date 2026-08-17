@@ -1,6 +1,0 @@
-- Controller handlers are wrapped with `asyncHandler` from `../utils/asyncHandler.js` so errors bubble to the global error handler instead of being caught inline.
-- HTTP responses are sent exclusively through `sendOk` and `sendCreated` helpers rather than calling `res.json` directly, keeping status codes and message shapes uniform.
-- Repository functions use symmetric `$or` queries on `requesterId`/`recipientId` pairs (e.g. `findBetween`, `findBlockBetween`) so relationship lookups are order-independent.
-- User objects in responses are normalized through a local `publicUser` helper that strips internal fields and exposes only `_id`, `username`, `displayName`, and `avatar`.
-- Business-logic errors are thrown as typed `ApiError` instances (`notFound`, `badRequest`, `conflict`, `forbidden`) instead of returning error objects or throwing generic Errors.
-- Route-level input validation is declared by importing named Zod schemas from `validations/friend.validation.js` and passing them to the shared `validate` middleware.

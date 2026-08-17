@@ -1,1 +1,0 @@
-None beyond standard Express app bootstrapping; routes are mounted by the parent app and rely on pre-existing `requireMessageAccess` middleware to resolve `req.message` from `:messageId`.

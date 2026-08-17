@@ -1,1 +1,0 @@
-Axios-based HTTP client (`../lib/api`) used through a consistent `api.<method>(url, payload)` interface; file uploads handled via native `FormData`.

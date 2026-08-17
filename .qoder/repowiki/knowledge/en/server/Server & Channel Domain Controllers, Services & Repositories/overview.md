@@ -1,1 +1,0 @@
-Express route handlers, business services, and Mongoose repositories that implement server CRUD, membership/role management, channel lifecycle, and channel-scoped threads/messages.

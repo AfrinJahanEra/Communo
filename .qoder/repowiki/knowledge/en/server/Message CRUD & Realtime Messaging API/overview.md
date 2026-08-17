@@ -1,1 +1,0 @@
-Express routes, controller, service, and repository that handle creating, listing, editing, deleting, pinning, reacting to, and voting on messages in channels and threads with real-time socket broadcasts.

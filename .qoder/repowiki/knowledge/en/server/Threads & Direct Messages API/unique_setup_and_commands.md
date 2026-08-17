@@ -1,1 +1,0 @@
-DM routes register literal `/messages/:messageId` paths before the parameterized `/:dmId/messages` path to avoid Express route-order collisions. Thread creation enforces a per-channel cap of 50 active threads defined as `MAX_ACTIVE_THREADS_PER_CHANNEL`.

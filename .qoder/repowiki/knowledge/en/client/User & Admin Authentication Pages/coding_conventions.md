@@ -1,6 +1,0 @@
-- Form fields use a shared `Field` + `Input` pair from `../components/ui/Input` with per-field `errors` state cleared on change via a `set(key)` helper.
-- Server errors are surfaced uniformly through `apiMessage(err, fallback)` and displayed in a red-bordered status box below the submit button.
-- Resend actions enforce a 60-second cooldown using a `cooldown` state plus a `setTimeout`-based countdown timer stored in a ref.
-- Async mutations wrap try/catch/finally with a `submitting` flag to drive the `loading` prop of the submit Button.
-- Navigation after success uses `navigate(path, { replace: true })` and passes context (e.g. email) via `location.state` rather than query params where possible.
-- Admin data fetching uses a local `useAdminQuery(fetcher, key)` hook that tracks pending/error/data and supports manual reload via a tick counter.

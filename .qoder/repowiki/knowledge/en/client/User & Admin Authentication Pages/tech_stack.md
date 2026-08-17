@@ -1,1 +1,0 @@
-React with react-router-dom for navigation, lucide-react icons, Tailwind CSS classes, and a shared axios-based `api` client that stores JWT access tokens via `setAccessToken`.

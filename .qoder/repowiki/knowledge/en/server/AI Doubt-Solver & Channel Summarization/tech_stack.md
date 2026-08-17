@@ -1,1 +1,0 @@
-Express router with Zod schema validation; MongoDB via Mongoose models; Groq OpenAI-compatible chat API (`/openai/v1/chat/completions`) using native `fetch` with bearer-token auth and AbortController timeouts.

@@ -1,6 +1,0 @@
-- Controllers are thin async functions wrapped with `asyncHandler` that call a single service method and respond via `sendOk`/`sendCreated` helpers.
-- User-scoped resources are accessed through a `getOwnedConversation(id, userId)` helper that normalizes missing/non-owned access into a 404 rather than a 403.
-- External LLM calls are isolated in `groq.service.js` and surfaced as typed `{ content, tokens }` objects, keeping API key handling out of business logic.
-- Prompts are defined as module-level template literals (`SYSTEM_PROMPT`, `SUMMARY_SYSTEM_PROMPT`) and injected as the first system-role message in the Groq call.
-- Rate limiting and input validation are applied declaratively in route definitions via `validate({ params/body })` and `aiLimiter` middleware, never inside controllers.
-- Repository methods follow a uniform `(id | query) => Model.find/create/update/delete` shape, returning Mongoose documents directly to callers.
