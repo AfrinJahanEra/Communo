@@ -1,4 +1,5 @@
 import User from "../models/User.js";
+import { GLOBAL_ROLES } from "../constants/roles.js";
 
 export const findById = (id) => User.findById(id);
 
@@ -17,6 +18,7 @@ export const findByEmailOrUsername = (email, username) =>
 export const searchByQuery = (query) =>
   User.find({
     isActive: true,
+    role: { $ne: GLOBAL_ROLES.ADMIN },
     $or: [
       { username: { $regex: query, $options: "i" } },
       { displayName: { $regex: query, $options: "i" } },

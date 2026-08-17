@@ -1,5 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
-import { RequireAuth, RequireAdmin } from "./components/RouteGuards";
+import { RequireAuth } from "./components/RouteGuards";
+import { LoadingScreen } from "./components/ui/Spinner";
+import { useAuth } from "./hooks/useAuth";
 import AppLayout from "./layouts/AppLayout";
 import HomeLayout from "./layouts/HomeLayout";
 import ServerLayout from "./layouts/ServerLayout";
@@ -17,13 +19,24 @@ import ChannelPage from "./pages/ChannelPage";
 import IdePage from "./pages/IdePage";
 import StudyPage from "./pages/StudyPage";
 import AdminPage from "./pages/AdminPage";
+import AdminLogin from "./pages/AdminLogin";
+
+/**
+ * Hidden admin entry: /admin shows the console to admins and a secret-key
+ * login form to everyone else — there is no link to it anywhere in the UI.
+ */
+const AdminEntry = () => {
+  const { user, booting } = useAuth();
+  if (booting) return <LoadingScreen label="Signing you in…" />;
+  return user?.role === "admin" ? <AdminPage /> : <AdminLogin />;
+};
 
 const App = () => (
   <Routes>
     <Route path="/" element={<Landing />} />
     {/*
       Deliberately unguarded: the login/register pages must always be
-      reachable so a signed-in browser can switch accounts (e.g. to admin).
+      reachable so a signed-in browser can switch accounts.
       Submitting the form simply replaces the current session.
     */}
     <Route path="/login" element={<Login />} />
@@ -46,15 +59,8 @@ const App = () => (
       }
     />
 
-    {/* Platform admin console: separate entry, admin role only */}
-    <Route
-      path="/admin"
-      element={
-        <RequireAdmin>
-          <AdminPage />
-        </RequireAdmin>
-      }
-    />
+    {/* Platform admin console: hidden URL, shows its own secret-key login */}
+    <Route path="/admin" element={<AdminEntry />} />
 
     <Route
       path="/app"

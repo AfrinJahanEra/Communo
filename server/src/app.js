@@ -17,14 +17,16 @@ const app = express();
 app.set("trust proxy", 1); // correct client IPs behind a reverse proxy
 
 // Security & parsing
+const allowedOrigins = [
+  env.CLIENT_URL,
+  "http://localhost:5173",
+  "http://localhost:5174",
+];
+
 app.use(helmet());
 app.use(
   cors({
-    origin: [
-      env.CLIENT_URL,
-      "http://localhost:5173",
-      "http://localhost:5174",
-    ],
+    origin: allowedOrigins,
     credentials: true,
   })
 );
@@ -70,6 +72,9 @@ const sniffContentType = (filePath) => {
   }
 };
 
+/** Origins allowed to embed an upload in an <iframe> (the PDF preview). */
+const frameAncestors = ["'self'", ...new Set(allowedOrigins)].join(" ");
+
 app.use(
   "/uploads",
   express.static(path.join(__dirname, "..", "uploads"), {
@@ -77,6 +82,11 @@ app.use(
       // The dev client runs on a different origin (Vite :5173); helmet's
       // default CORP same-origin would block <img> loads from there.
       res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+      // ...and its X-Frame-Options / frame-ancestors 'self' would block the
+      // PDF preview iframe. X-Frame-Options has no cross-origin allow-list
+      // (ALLOW-FROM is dead), so drop it and let CSP name the client origins.
+      res.removeHeader("X-Frame-Options");
+      res.setHeader("Content-Security-Policy", `frame-ancestors ${frameAncestors}`);
       if (!path.extname(filePath)) {
         const type = sniffContentType(filePath);
         if (type) res.setHeader("Content-Type", type);

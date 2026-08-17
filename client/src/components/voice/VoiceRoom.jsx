@@ -11,9 +11,25 @@ import { cn, displayNameOf, idOf } from "../../lib/utils";
 import { hasPermission, PERMISSIONS } from "../../lib/permissions";
 import { getVoiceParticipants } from "../../services/channelService";
 
-const RTC_CONFIG = {
-  iceServers: [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }],
+/**
+ * STUN discovers public addresses; on LAN that is enough, but across mobile
+ * networks / symmetric NATs a direct path often cannot be punched — set the
+ * VITE_TURN_* env vars (e.g. from metered.ca) to relay media in that case.
+ */
+const buildIceServers = () => {
+  const servers = [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }];
+  const turnUrl = import.meta.env.VITE_TURN_URL;
+  if (turnUrl) {
+    servers.push({
+      urls: turnUrl,
+      username: import.meta.env.VITE_TURN_USERNAME || "",
+      credential: import.meta.env.VITE_TURN_CREDENTIAL || "",
+    });
+  }
+  return servers;
 };
+
+const RTC_CONFIG = { iceServers: buildIceServers() };
 
 /** Hidden element that plays one peer's remote audio stream. */
 const AudioSink = ({ stream }) => {
@@ -107,13 +123,23 @@ export const VoiceRoom = ({ channel, myPermissions, onOpenSidebar }) => {
           emitAck("voice:signal", { targetUserId, data: { candidate: e.candidate.toJSON() } });
         }
       };
+      // Surface NAT/firewall failures instead of silently staying mute
+      pc.oniceconnectionstatechange = () => {
+        if (pc.iceConnectionState === "failed") {
+          toast({
+            type: "error",
+            title: "Voice connection failed",
+            body: "A direct audio path could not be established. On different networks a TURN relay may be required.",
+          });
+        }
+      };
       pc.ontrack = (e) => {
         const [stream] = e.streams;
         setStreams((prev) => ({ ...prev, [targetUserId]: stream }));
       };
       return pc;
     },
-    []
+    [toast]
   );
 
   const leave = useCallback(async ({ notifyServer = true } = {}) => {
