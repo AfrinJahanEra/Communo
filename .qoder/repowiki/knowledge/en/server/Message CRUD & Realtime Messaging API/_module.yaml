@@ -1,0 +1,12 @@
+schema_version: 1
+module_path: server/messages
+title: Message CRUD & Realtime Messaging API
+scope:
+    - server/src/controllers/message.controller.js
+    - server/src/services/message.service.js
+    - server/src/repositories/message.repository.js
+    - server/src/routes/message.routes.js
+    - server/src/validations/message.validation.js
+source_files: []
+depends_on: []
+related_to: []

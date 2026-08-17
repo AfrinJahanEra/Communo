@@ -1,0 +1,17 @@
+schema_version: 1
+module_path: server/threads_and_dms
+title: Threads & Direct Messages API
+scope:
+    - server/src/controllers/thread.controller.js
+    - server/src/controllers/dm.controller.js
+    - server/src/services/thread.service.js
+    - server/src/services/dm.service.js
+    - server/src/repositories/thread.repository.js
+    - server/src/repositories/dm.repository.js
+    - server/src/routes/thread.routes.js
+    - server/src/routes/dm.routes.js
+    - server/src/validations/thread.validation.js
+    - server/src/validations/dm.validation.js
+source_files: []
+depends_on: []
+related_to: []

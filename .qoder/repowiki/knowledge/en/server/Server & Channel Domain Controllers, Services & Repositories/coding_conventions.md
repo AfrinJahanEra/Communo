@@ -1,0 +1,6 @@
+- Controllers wrap every handler in `asyncHandler` from `utils/asyncHandler.js` so unhandled promise rejections are caught centrally.
+- Responses are sent exclusively through `sendOk` / `sendCreated` helpers from `utils/response.js`, keeping status codes and message payloads uniform.
+- Multi-step mutations that touch several collections are wrapped in `withTransaction(async (session) => { ... })` and pass the session to every repository call.
+- Authorization is enforced declaratively in routes using `requireServerPermission(PERMISSIONS.X)` / `requireServerOwner` / `requireChannelAccess` middleware rather than ad-hoc checks inside controllers.
+- Input validation is declared once in `validations/*.js` schemas and attached to routes via the `validate({ body|query|params })` middleware instead of being parsed inline.
+- Repositories expose a flat function API (`findById`, `updateById`, `deleteById`, `findByServer`) and keep model-specific transformations (e.g. `toChannelResponse`) co-located with the model's query methods.

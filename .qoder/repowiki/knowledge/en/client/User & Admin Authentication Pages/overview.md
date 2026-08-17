@@ -1,0 +1,1 @@
+React pages and auth service that handle landing, user registration/login with email verification, Google OAuth, admin login, and the admin dashboard for monitoring users and servers.

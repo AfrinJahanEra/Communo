@@ -160,6 +160,12 @@ const Login = () => {
             Create an account
           </Link>
         </p>
+
+        <div className="mt-4 flex justify-center">
+          <Button variant="outline" size="sm" type="button" onClick={() => navigate("/")}>
+            Back to home
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -1,0 +1,10 @@
+schema_version: 1
+module_path: client/server_management
+title: Server, Channel & Admin HTTP Services
+scope:
+    - client/src/services/serverService.js
+    - client/src/services/channelService.js
+    - client/src/services/adminService.js
+source_files: []
+depends_on: []
+related_to: []

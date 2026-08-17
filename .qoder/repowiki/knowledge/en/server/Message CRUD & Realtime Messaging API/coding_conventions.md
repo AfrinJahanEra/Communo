@@ -1,0 +1,6 @@
+- Controllers are thin passthroughs that extract context from `req` (channel, thread, message, user, permissions) and delegate all business logic to the service, then respond with `sendOk` or `sendCreated`.
+- Controller functions are wrapped with `asyncHandler` so async errors are caught centrally rather than handled inline.
+- Permission checks use the shared `hasPermission(bitfield, PERMISSIONS.*)` helper instead of ad-hoc role comparisons.
+- All mutations broadcast real-time updates via `emitToRoom(messageRoom(...), event, payload)` after persisting changes, keeping DB and clients in sync.
+- Cursor-based pagination is implemented by resolving a `before` message ID to its `createdAt` timestamp and querying `createdAt < before` sorted descending.
+- Validation schemas are defined once in `message.validation.js` with Zod and reused by both route-level `validate({ body|params })` middleware and consumed elsewhere as reusable contracts.

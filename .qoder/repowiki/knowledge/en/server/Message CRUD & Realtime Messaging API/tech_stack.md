@@ -1,0 +1,1 @@
+Express Router + Zod for request validation; Mongoose ODM against a `Message` model; Socket.io-style event emission via `../sockets/emitters`; Cloudinary attachment cleanup via `destroyStored`.

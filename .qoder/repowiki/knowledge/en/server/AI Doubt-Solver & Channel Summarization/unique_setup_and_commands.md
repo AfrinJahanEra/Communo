@@ -1,0 +1,1 @@
+Requires `GROQ_API_KEY` and `GROQ_MODEL` environment variables; without them `groq.service.assertConfigured` throws a 503 error. The message endpoint is additionally protected by the `aiLimiter` middleware.

@@ -1,0 +1,16 @@
+schema_version: 1
+module_path: server/resources_and_attachments
+title: resources_and_attachments
+scope:
+    - server/src/controllers/resource.controller.js
+    - server/src/controllers/attachment.controller.js
+    - server/src/services/resource.service.js
+    - server/src/services/resourceText.service.js
+    - server/src/services/attachment.service.js
+    - server/src/repositories/resource.repository.js
+    - server/src/routes/resource.routes.js
+    - server/src/routes/attachment.routes.js
+    - server/src/validations/resource.validation.js
+source_files: []
+depends_on: []
+related_to: []

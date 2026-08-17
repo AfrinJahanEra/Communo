@@ -1,0 +1,21 @@
+schema_version: 1
+module_path: server/servers_and_channels
+title: Server & Channel Domain Controllers, Services & Repositories
+scope:
+    - server/src/controllers/server.controller.js
+    - server/src/controllers/channel.controller.js
+    - server/src/services/server.service.js
+    - server/src/services/channel.service.js
+    - server/src/services/member.service.js
+    - server/src/services/role.service.js
+    - server/src/repositories/server.repository.js
+    - server/src/repositories/serverMember.repository.js
+    - server/src/repositories/channel.repository.js
+    - server/src/repositories/role.repository.js
+    - server/src/routes/server.routes.js
+    - server/src/routes/channel.routes.js
+    - server/src/validations/server.validation.js
+    - server/src/validations/channel.validation.js
+source_files: []
+depends_on: []
+related_to: []

@@ -1,0 +1,16 @@
+schema_version: 1
+module_path: server/workspace_and_execution
+title: workspace_and_execution
+scope:
+    - server/src/controllers/workspace.controller.js
+    - server/src/controllers/execution.controller.js
+    - server/src/services/workspace.service.js
+    - server/src/services/execution.service.js
+    - server/src/services/runner.service.js
+    - server/src/repositories/workspace.repository.js
+    - server/src/repositories/workspaceFile.repository.js
+    - server/src/routes/workspace.routes.js
+    - server/src/validations/workspace.validation.js
+source_files: []
+depends_on: []
+related_to: []

@@ -1,0 +1,1 @@
+Client-side HTTP service layer that wraps the backend REST API for servers, channels (with threads/messages), and admin dashboard endpoints via a shared Axios instance.

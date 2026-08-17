@@ -129,7 +129,7 @@ void main() {
   vec3 tangent = normalize(knotPos(t + eps) - knotPos(t - eps));
   vec3 up = vec3(0.0, 0.0, 1.0);
   vec3 normal = cross(tangent, up);
-  // Guard the degenerate case where the tangent aligns with `up`
+  // Guard the degenerate case where the tangent aligns with \`up\`
   normal = length(normal) < 1e-4 ? vec3(1.0, 0.0, 0.0) : normalize(normal);
   vec3 binormal = normalize(cross(tangent, normal));
 

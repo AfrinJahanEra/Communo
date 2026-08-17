@@ -1,0 +1,7 @@
+- Controllers are thin async wrappers that delegate to service functions and return responses via `sendOk`/`sendCreated` from `utils/response.js`, never constructing JSON bodies directly.
+- All controller handlers are wrapped with `asyncHandler` to centralize async error propagation.
+- Business logic (permissions, state guards, cross-entity checks) lives exclusively in services; controllers only pass pre-populated `req` context into them.
+- Repository methods accept an optional `session` argument so callers can participate in a transaction when multiple collections must be updated atomically.
+- Per-user unread counts are stored as dynamic keys on a map field and normalized to a single `unreadCount` number by `toXxxResponse` helper functions before being sent to clients.
+- Mutations that affect other users broadcast a socket event via `emitToUsers` immediately after persisting changes (e.g., `dm:new`, `dm:updated`, `dm:deleted`, `thread:read`).
+- Request shapes are validated with Zod schemas exported from dedicated files and applied declaratively in routes via the `validate` middleware.

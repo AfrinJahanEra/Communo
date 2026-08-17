@@ -1,0 +1,1 @@
+Express routes and business logic for sending/accepting friend requests, listing friends, searching users, and blocking/unblocking other users with real-time socket notifications.

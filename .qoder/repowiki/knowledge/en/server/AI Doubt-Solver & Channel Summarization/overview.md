@@ -1,0 +1,1 @@
+Provides per-user AI conversation (doubt-solver) and channel/DM summarization features backed by Groq's OpenAI-compatible chat API, with private conversation storage and resource-attached messaging.

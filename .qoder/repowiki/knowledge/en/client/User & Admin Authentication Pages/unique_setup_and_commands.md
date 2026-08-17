@@ -1,0 +1,1 @@
+None — these are standard React page components consumed by the app's router; no build or test scripts specific to this scope.

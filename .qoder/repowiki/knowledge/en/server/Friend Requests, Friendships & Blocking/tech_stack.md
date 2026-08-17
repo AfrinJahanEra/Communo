@@ -1,0 +1,1 @@
+Express Router + Zod schema validation (`zod`) for request bodies/params; Mongoose models `Relationship` and `Block` for persistence; Socket.IO event emission via `sockets/emitters.js` for real-time friend request/accept/remove notifications.

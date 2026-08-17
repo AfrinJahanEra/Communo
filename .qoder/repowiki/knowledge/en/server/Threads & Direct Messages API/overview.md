@@ -1,0 +1,1 @@
+Express routes, controllers, services, and repositories that implement channel-scoped threads and 1:1 direct message channels with real-time updates.

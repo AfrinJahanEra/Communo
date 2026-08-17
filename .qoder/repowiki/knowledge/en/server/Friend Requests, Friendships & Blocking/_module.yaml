@@ -1,0 +1,12 @@
+schema_version: 1
+module_path: server/friends
+title: Friend Requests, Friendships & Blocking
+scope:
+    - server/src/controllers/friend.controller.js
+    - server/src/services/friend.service.js
+    - server/src/repositories/friend.repository.js
+    - server/src/routes/friend.routes.js
+    - server/src/validations/friend.validation.js
+source_files: []
+depends_on: []
+related_to: []

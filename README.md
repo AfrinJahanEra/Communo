@@ -4,23 +4,7 @@ A real-time collaborative learning platform for CSE students that combines commu
 
 CodeCord is organized around servers (communities). Inside each server, members get text and announcement channels with threads and pins, voice study rooms, a shared collaborative code workspace with live execution, and an AI doubt solver backed by shared study resources (PDFs, notes, slides).
 
----
-
-## Table of Contents
-
-1. [Feature Overview](#feature-overview)
-2. [Technology Stack](#technology-stack)
-3. [System Architecture](#system-architecture)
-4. [Module Implementation Details](#module-implementation-details)
-5. [Real-Time Protocol](#real-time-protocol)
-6. [REST API Surface](#rest-api-surface)
-7. [Data Models](#data-models)
-8. [Security](#security)
-9. [Project Structure](#project-structure)
-10. [Environment Configuration](#environment-configuration)
-11. [Getting Started](#getting-started)
-12. [Testing](#testing)
-13. [Design System](#design-system)
+![CodeCord landing page](client/public/landing.png)
 
 ---
 
