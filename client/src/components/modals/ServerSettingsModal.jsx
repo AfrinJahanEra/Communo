@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Crown, Plus, Save, Trash2, UserMinus } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Crown, ImagePlus, Plus, Save, Trash2, UserMinus } from "lucide-react";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
 import { Field, Input, TextArea } from "../ui/Input";
@@ -17,6 +17,79 @@ const TABS = [
 ];
 
 // ---------- Overview ----------
+
+const MAX_ICON_SIZE = 5 * 1024 * 1024; // 5MB, mirrors the server-side limit
+
+const ServerIconPicker = ({ server, onChanged }) => {
+  const { toast } = useToast();
+  const fileRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+
+  const pick = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ type: "error", title: "The server icon must be an image" });
+      return;
+    }
+    if (file.size > MAX_ICON_SIZE) {
+      toast({ type: "error", title: "Icon is too large", body: "Maximum size is 5 MB." });
+      return;
+    }
+    setUploading(true);
+    try {
+      await serverService.uploadServerIcon(server._id, file);
+      toast({ type: "success", title: "Server icon updated" });
+      onChanged();
+    } catch (err) {
+      toast({ type: "error", title: "Could not upload icon", body: apiMessage(err) });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const remove = async () => {
+    try {
+      await serverService.removeServerIcon(server._id);
+      toast({ type: "success", title: "Server icon removed" });
+      onChanged();
+    } catch (err) {
+      toast({ type: "error", title: "Could not remove icon", body: apiMessage(err) });
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-4 rounded-xl border border-cream-300 bg-cream-100/60 p-4">
+      {server.icon ? (
+        <img
+          src={server.icon}
+          alt={`${server.name} icon`}
+          className="h-16 w-16 shrink-0 rounded-2xl object-cover"
+        />
+      ) : (
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-lav-100 text-xl font-bold text-lav-700">
+          {server.name?.[0]?.toUpperCase() || "?"}
+        </div>
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-ink-900">Server icon</p>
+        <p className="text-xs text-ink-500">PNG, JPG, GIF or WEBP — up to 5 MB.</p>
+        <div className="mt-2 flex gap-2">
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={pick} />
+          <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()} loading={uploading}>
+            <ImagePlus size={13} /> {server.icon ? "Change icon" : "Upload icon"}
+          </Button>
+          {server.icon && (
+            <Button size="sm" variant="danger" onClick={remove} disabled={uploading}>
+              <Trash2 size={13} /> Remove
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const OverviewTab = ({ server, isOwner, members, onChanged, onClose }) => {
   const { toast } = useToast();
@@ -72,6 +145,7 @@ const OverviewTab = ({ server, isOwner, members, onChanged, onClose }) => {
 
   return (
     <div className="space-y-6">
+      <ServerIconPicker server={server} onChanged={onChanged} />
       <form onSubmit={save} className="space-y-4">
         <Field label="Server name">
           <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} maxLength={100} />

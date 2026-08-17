@@ -1,4 +1,7 @@
 import ApiError from "../utils/ApiError.js";
+import logger from "../utils/logger.js";
+import { storeBuffer, destroyStoredUrl } from "../utils/storage.util.js";
+import { extensionOf } from "../middleware/uploadAttachment.js";
 import { withTransaction } from "../utils/withTransaction.js";
 import {
   DEFAULT_MEMBER_PERMISSIONS,
@@ -77,6 +80,32 @@ export const updateServer = async (serverId, update) => {
   const server = await serverRepository.updateById(serverId, update);
   if (!server) throw ApiError.notFound("Server not found");
   return server;
+};
+
+/** Stores a new server icon and deletes the previous one, if any. */
+export const updateServerIcon = async (server, file) => {
+  if (!file?.buffer) throw ApiError.badRequest("Server icon file is required");
+
+  const stored = await storeBuffer(file.buffer, {
+    folder: "codecord/server-icons",
+    resourceType: "image",
+    publicId: `server-icon-${server._id}-${Date.now()}`,
+    extension: extensionOf(file.originalname),
+  }).catch((err) => {
+    logger.error({ err, serverId: server._id }, "Server icon upload failed");
+    throw ApiError.internal("Icon upload failed, please try again");
+  });
+
+  const updated = await serverRepository.updateById(server._id, { icon: stored.url });
+  if (server.icon) destroyStoredUrl(server.icon);
+  return updated;
+};
+
+/** Clears the server icon and deletes the stored file. */
+export const removeServerIcon = async (server) => {
+  const updated = await serverRepository.updateById(server._id, { icon: "" });
+  if (server.icon) destroyStoredUrl(server.icon);
+  return updated;
 };
 
 /** Deletes the server and cascades roles, memberships, invites, channels, threads and messages. */

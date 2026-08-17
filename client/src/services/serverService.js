@@ -25,6 +25,20 @@ export const updateServer = async (serverId, payload) => {
   return data.server;
 };
 
+export const uploadServerIcon = async (serverId, file) => {
+  const form = new FormData();
+  form.append("icon", file);
+  const { data } = await api.patch(`/servers/${serverId}/icon`, form, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data.server;
+};
+
+export const removeServerIcon = async (serverId) => {
+  const { data } = await api.delete(`/servers/${serverId}/icon`);
+  return data.server;
+};
+
 export const deleteServer = async (serverId) => {
   const { data } = await api.delete(`/servers/${serverId}`);
   return data;

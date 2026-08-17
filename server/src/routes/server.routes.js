@@ -28,11 +28,14 @@ import {
   discoverServers,
   getServerDetails,
   updateServer,
+  updateServerIcon,
+  removeServerIcon,
   deleteServer,
   joinPublicServer,
   leaveServer,
   transferOwnership,
 } from "../controllers/server.controller.js";
+import { uploadServerIcon } from "../middleware/uploadServerIcon.js";
 import {
   listRoles,
   createRole,
@@ -82,6 +85,17 @@ router.patch(
   requireServerPermission(PERMISSIONS.MANAGE_SERVER),
   validate({ body: updateServerSchema }),
   updateServer
+);
+router.patch(
+  "/:serverId/icon",
+  requireServerPermission(PERMISSIONS.MANAGE_SERVER),
+  uploadServerIcon.single("icon"),
+  updateServerIcon
+);
+router.delete(
+  "/:serverId/icon",
+  requireServerPermission(PERMISSIONS.MANAGE_SERVER),
+  removeServerIcon
 );
 router.delete("/:serverId", requireServerOwner, deleteServer);
 router.post("/:serverId/leave", leaveServer);

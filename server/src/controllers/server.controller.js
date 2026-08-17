@@ -27,6 +27,18 @@ export const updateServer = asyncHandler(async (req, res) => {
   return sendOk(res, "Server updated", { server });
 });
 
+// @route PATCH /api/v1/servers/:serverId/icon
+export const updateServerIcon = asyncHandler(async (req, res) => {
+  const server = await serverService.updateServerIcon(req.server, req.file);
+  return sendOk(res, "Server icon updated", { server });
+});
+
+// @route DELETE /api/v1/servers/:serverId/icon
+export const removeServerIcon = asyncHandler(async (req, res) => {
+  const server = await serverService.removeServerIcon(req.server);
+  return sendOk(res, "Server icon removed", { server });
+});
+
 export const deleteServer = asyncHandler(async (req, res) => {
   await serverService.deleteServer(req.server._id);
   return sendOk(res, "Server deleted");

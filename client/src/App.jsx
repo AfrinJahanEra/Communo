@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom";
-import { RedirectIfAuth, RequireAuth, RequireAdmin } from "./components/RouteGuards";
+import { RequireAuth, RequireAdmin } from "./components/RouteGuards";
 import AppLayout from "./layouts/AppLayout";
 import HomeLayout from "./layouts/HomeLayout";
 import ServerLayout from "./layouts/ServerLayout";
@@ -21,27 +21,18 @@ import AdminPage from "./pages/AdminPage";
 const App = () => (
   <Routes>
     <Route path="/" element={<Landing />} />
-    <Route
-      path="/login"
-      element={
-        <RedirectIfAuth>
-          <Login />
-        </RedirectIfAuth>
-      }
-    />
-    <Route
-      path="/register"
-      element={
-        <RedirectIfAuth>
-          <Register />
-        </RedirectIfAuth>
-      }
-    />
+    {/*
+      Deliberately unguarded: the login/register pages must always be
+      reachable so a signed-in browser can switch accounts (e.g. to admin).
+      Submitting the form simply replaces the current session.
+    */}
+    <Route path="/login" element={<Login />} />
+    <Route path="/register" element={<Register />} />
 
     {/*
-      Deliberately unguarded. RedirectIfAuth would bounce the user away from
-      /verify-email the moment verification succeeds and a session appears,
-      before the success state could render.
+      Deliberately unguarded: the moment verification succeeds a session
+      appears, and a guard would bounce the user away before the success
+      state could render.
     */}
     <Route path="/check-email" element={<CheckEmail />} />
     <Route path="/verify-email" element={<VerifyEmail />} />

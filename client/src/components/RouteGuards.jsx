@@ -11,14 +11,6 @@ export const RequireAuth = ({ children }) => {
   return children;
 };
 
-/** Keeps signed-in users out of the auth pages. */
-export const RedirectIfAuth = ({ children }) => {
-  const { user, booting } = useAuth();
-  if (booting) return <LoadingScreen />;
-  if (user) return <Navigate to={user.role === "admin" ? "/admin" : "/app"} replace />;
-  return children;
-};
-
 /** Platform-admin gate: signed in AND role === "admin". */
 export const RequireAdmin = ({ children }) => {
   const { user, booting } = useAuth();

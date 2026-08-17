@@ -33,7 +33,10 @@ export const emailVerificationExpiryDate = () =>
 const baseCookieOptions = {
   httpOnly: true,
   secure: env.isProduction,
-  sameSite: "lax",
+  // Production runs the client and API on different sites (e.g. Vercel +
+  // Render), so the refresh cookie must be cross-site; "lax" in dev keeps
+  // the stricter default where same-origin applies.
+  sameSite: env.isProduction ? "none" : "lax",
 };
 
 export const accessTokenCookieOptions = {

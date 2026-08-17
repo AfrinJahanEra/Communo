@@ -93,6 +93,11 @@ app.get("/", (req, res) => {
   res.json({ success: true, message: "Communo API is running" });
 });
 
+// Health probe for platform checks (Render health checks, uptime monitors)
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", uptime: process.uptime() });
+});
+
 // Errors
 app.use(notFoundHandler);
 app.use(errorHandler);
